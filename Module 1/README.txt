@@ -1,5 +1,7 @@
 ﻿Module 1: Personal Website
 
+SSH url: git@github.com:HKipouros/jhu_software_concepts.git
+
 run.py - In this project, I created a personal website that can be launched by running the program run.py. The run.py program begins by importing the third-party Flask module and the “pages” module. The program then instantiates a Flask object called “app” and registers a blueprint based on “pages”. Finally, the program runs “app” within a dunder main block.
 
 pages.py - This program begins by importing Blueprint and render_template from Flask, and then creates a Blueprint instance called “pages”. The program proceeds to define routes for a homepage, contact page, and projects page for the website. Each route includes a function that returns information derived from a respective HTML template using render_template.
