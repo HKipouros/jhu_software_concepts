@@ -3,18 +3,18 @@ Scrape data from TheGradCafe using Beautiful Soup. Returns a list of grad school
 """
 
 from bs4 import BeautifulSoup
+import json
 import urllib3
 
 
-def scrape_data():
+def scrape_data(num_data_points: int):
     iter_var = 1 
     data_points = 0 
     BASE_URL = "https://www.thegradcafe.com/survey/?page="
-    desired_data_points = 50
     entries = []
     http = urllib3.PoolManager()
 
-    while data_points < desired_data_points:
+    while data_points < num_data_points:
         url = f"{BASE_URL}{str(iter_var)}"
         page = http.request("GET", url)
         soup = BeautifulSoup(page.data.decode("utf-8"), features="lxml")
@@ -82,10 +82,15 @@ def scrape_data():
 
     return entries
 
-resultsy = scrape_data()
-from pprint import pprint
-pprint(resultsy)
-print(f"total data points {len(resultsy)}")
+def save_data(input_data: list, output_file: str):
+    data_json = json.dumps(input_data, indent=4) # convert list data to json
+    with open(output_file, "w") as writer:
+        writer.write(data_json)
+
+if __name__ == "__main__":
+    grad_data = scrape_data(50)
+    FILE_NAME = "applicant_data_messy.json"
+    save_data(grad_data, FILE_NAME)
 
 
 
