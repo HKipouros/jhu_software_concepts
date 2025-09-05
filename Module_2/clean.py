@@ -5,7 +5,7 @@ import re
 
 def load_data(input_json:str):
     """Loads data from a json file, returns Python list"""
-    
+
     with open(input_json, "r") as reader:
         json_data = json.load(reader)
         return json_data
@@ -25,7 +25,7 @@ def clean_data(raw_data: list):
             pass
         else:
             entry["school"] = re.sub(RE_NUM_PAT, "", entry["school"])
-        
+
         # Clean HTML tags with Regex
         RE_TAG_PAT = r"<[^>]+>"
         if entry["comments"] is None:
@@ -68,12 +68,13 @@ def clean_data(raw_data: list):
     return clean_data
 
 def save_clean_data(input_data: list, output_file: str):
+    """ Save cleaned data as json file"""
     data_json = json.dumps(input_data, indent=4) # convert list data to json
     with open(output_file, "w") as writer:
         writer.write(data_json)
 
 if __name__ == "__main__":
-    test_data = load_data("applicant_data_messy.json")
-    cleaned_data = clean_data(test_data)
-    CLEAN_FILE_NAME = "clean_needs_llm.json"
-    save_clean_data(cleaned_data, CLEAN_FILE_NAME)
+    test_data = load_data("applicant_data_messy.json") # obtain scraped data
+    cleaned_data = clean_data(test_data) # clean scraped data
+    CLEAN_FILE_NAME = "applicant_data.json"
+    save_clean_data(cleaned_data, CLEAN_FILE_NAME) # save cleaned data

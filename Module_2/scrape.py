@@ -1,21 +1,22 @@
 """
-Scrape data from TheGradCafe using Beautiful Soup. Returns a list of grad school applicant entry data.
+Scrape data from TheGradCafe using Beautiful Soup.
+Returns a list of grad school applicant entry data.
 """
-
-from bs4 import BeautifulSoup
 import json
+from bs4 import BeautifulSoup
 import urllib3
 
-
 def scrape_data(num_data_points: int):
-    iter_var = 1 
-    data_points = 0 
+    """ Scrape a user-selected number of datapoints from TheGradCafe"""
+
+    iter_var = 1
+    data_points = 0
     BASE_URL = "https://www.thegradcafe.com/survey/?page="
     entries = []
     http = urllib3.PoolManager()
 
     while data_points < num_data_points:
-        
+
         # Open GradCafe webpage using try/except
         url = f"{BASE_URL}{str(iter_var)}"
         try:
@@ -28,7 +29,7 @@ def scrape_data(num_data_points: int):
             tbodies = soup.find("tbody")
             rows = tbodies.find_all("tr")
             i = 0
-            
+
             while i < len(rows):
                 row = rows[i]
 
@@ -37,7 +38,7 @@ def scrape_data(num_data_points: int):
                 if len(tds) == 5:
                     entry = {} # individual applicant entry data
 
-            
+
                     entry["school"] = tds[0].get_text(strip=True)
                     program_div = tds[1].find("div")
                     spans = program_div.find_all('span')
@@ -91,20 +92,12 @@ def scrape_data(num_data_points: int):
     return entries
 
 def save_data(input_data: list, output_file: str):
+    """ Save scraped data into json file"""
     data_json = json.dumps(input_data, indent=4) # convert list data to json
     with open(output_file, "w") as writer:
         writer.write(data_json)
 
 if __name__ == "__main__":
-    grad_data = scrape_data(50)
+    grad_data = scrape_data(10000) # enter desired number of datapoints
     FILE_NAME = "applicant_data_messy.json"
     save_data(grad_data, FILE_NAME)
-
-
-
-
-
-
-
-
-
