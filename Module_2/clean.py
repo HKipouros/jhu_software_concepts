@@ -5,6 +5,7 @@ import re
 
 def load_data(input_json:str):
     """Loads data from a json file, returns Python list"""
+    
     with open(input_json, "r") as reader:
         json_data = json.load(reader)
         return json_data
@@ -24,8 +25,15 @@ def clean_data(raw_data: list):
             pass
         else:
             entry["school"] = re.sub(RE_NUM_PAT, "", entry["school"])
+        
+        # Clean HTML tags with Regex
+        RE_TAG_PAT = r"<[^>]+>"
+        if entry["comments"] is None:
+            pass
+        else:
+            entry["comments"] = re.sub(RE_TAG_PAT, "", entry["comments"])
 
-        # Old entries use a differemt "term" format 
+        # Old entries use a differemt "term" format
         # (e.g. old:F18, new:Fall 2018), use Regex to standardize
         RE_TERM_PAT = r"^[A-Za-z]\d{2}$"
         if re.search(RE_TERM_PAT, entry["semester_year"]) is None:
