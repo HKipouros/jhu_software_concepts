@@ -98,6 +98,6 @@ def save_data(input_data: list, output_file: str):
         writer.write(data_json)
 
 if __name__ == "__main__":
-    grad_data = scrape_data(10000) # enter desired number of datapoints
+    grad_data = scrape_data(30000) # enter desired number of datapoints
     FILE_NAME = "applicant_data_messy.json"
     save_data(grad_data, FILE_NAME)

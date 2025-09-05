@@ -21,7 +21,7 @@ def clean_data(raw_data: list):
 
         # Clean numbers out of school name using Regex
         RE_NUM_PAT = r"\d"
-        if re.search(RE_NUM_PAT, entry["school"]) is None:
+        if "school" not in entry or re.search(RE_NUM_PAT, entry["school"]) is None:
             pass
         else:
             entry["school"] = re.sub(RE_NUM_PAT, "", entry["school"])
@@ -36,7 +36,7 @@ def clean_data(raw_data: list):
         # Old entries use a differemt "term" format
         # (e.g. old:F18, new:Fall 2018), use Regex to standardize
         RE_TERM_PAT = r"^[A-Za-z]\d{2}$"
-        if re.search(RE_TERM_PAT, entry["semester_year"]) is None:
+        if "semester_year" not in entry or re.search(RE_TERM_PAT, entry["semester_year"]) is None:
             pass
         else:
             if entry["semester_year"][0] == "F":
@@ -47,7 +47,9 @@ def clean_data(raw_data: list):
 
         # Format everything as in assignment brief
         if "program" in entry and "school" in entry:
-            clean_entry["program"] = f"{entry["program"]}, {entry["school"]}"
+            program = entry["program"]
+            school = entry["school"]
+            clean_entry["program"] = f"{program}, {school}"
         else:
             clean_entry["program"] = None
 
