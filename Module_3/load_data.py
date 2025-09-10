@@ -2,12 +2,13 @@ import os
 import psycopg2
 import json
 
+# Connect to the database
+conn = psycopg2.connect(os.environ["DATABASE_URL"])
 
 def data_to_base(FILENAME: str):
-    """Add applicant data from json file to database"""
-
-    # Connect to the database
-    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    """
+    Function to add applicant data from json file to database
+    """
 
     # Create a cursor object and create "applicant" table
     with conn.cursor() as cur:
@@ -69,7 +70,7 @@ def data_to_base(FILENAME: str):
                 us_or_international, gpa, gre, gre_v, gre_aw, degree,
                 llm_generated_program, llm_generated_university
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (program, comments, date_added, url, status, entry["term"],
+            """, (program, comments, date_added, url, status, term,
                   us_or_international, gpa, gre, gre_v, gre_aw, degree,
                   llm_generated_program, llm_generated_university))
 
@@ -79,6 +80,7 @@ def data_to_base(FILENAME: str):
     # Close the connection
     conn.close()
 
-
-data_to_base("mini_extend_1.json")
-print("Done!!")
+if __name__ == "__main__":
+    input_file = "llm_extend_applicant_data.json"
+    data_to_base(input_file)
+    print("Done!!")

@@ -50,7 +50,7 @@ def run_queries():
         cur.execute("""    SELECT
             AVG(gpa) AS average_gpa_american
             FROM applicants
-            WHERE us_or_international = 'US';""")
+            WHERE us_or_international = 'American';""")
         average_gpa_american = cur.fetchone()[0]
         query_results["average_gpa_american"] = average_gpa_american
 
@@ -58,7 +58,7 @@ def run_queries():
         cur.execute("""    SELECT 
             CASE 
                 WHEN COUNT(*) = 0 THEN NULL
-                ELSE (COUNT(*) FILTER (WHERE status = 'Accepted') * 100.0 / COUNT(*))
+                ELSE (COUNT(*) FILTER (WHERE status LIKE 'Accepted%') * 100.0 / COUNT(*))
             END AS percentage_accepted
             FROM applicants
             WHERE term = 'Fall 2025';""")
@@ -68,7 +68,7 @@ def run_queries():
         # 6. Query to find average GPA for Fall 2025 Accepted
         cur.execute("""    SELECT AVG(gpa) AS average_gpa_accepted_f25
             FROM applicants
-            WHERE term = 'Fall 2025' AND status = 'Accepted';""")
+            WHERE term = 'Fall 2025' AND status LIKE 'Accepted%';""")
         average_gpa_accepted_f25 = cur.fetchone()[0]
         query_results["average_gpa_accepted_f25"] = average_gpa_accepted_f25
 
