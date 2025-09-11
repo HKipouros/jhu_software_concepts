@@ -1,15 +1,16 @@
 """
 Update the database with new data scraped from GradCafe.
+Comprises determining most recent entry in database, scraping new data from GradCafe, performing initial clean on data, and applying LLM to data.
 """
 import os
+import re
 from sre_constants import NOT_LITERAL
 import psycopg2
-import json
 import json
 from bs4 import BeautifulSoup
 import urllib3
 
-# Part I: Determine most recent entry in database currently (based on url entry id)
+# Part 1: Determine most recent entry in database currently (based on url entry id)
 
 # Connect to the database
 conn = psycopg2.connect(os.environ["DATABASE_URL"])
@@ -50,7 +51,7 @@ def find_recent():
   return int(max_number)
 
 
-# Part II: Scrape new data from TheGradCafe. "New" means data that is not already contained in our database, which is determined by entry id (found at end of entry url).
+# Part 2: Scrape new data from TheGradCafe. "New" means data that is not already contained in our database, which is determined by entry id (found at end of entry url).
 
 
 def updated_scrape(recent_id: int):
@@ -113,8 +114,7 @@ def updated_scrape(recent_id: int):
           entry["date_added"] = tds[2].get_text(strip=True)
           entry["status"] = tds[3].get_text(strip=True)
           link_tag = tds[4].find('a', href=True)
-          entry["link"] = "https://www.thegradcafe.com" + link_tag[
-              "href"] if link_tag else None
+          entry["link"] = "https://www.thegradcafe.com" + str(link_tag.get("href", "")) if link_tag and link_tag.get("href") else None
 
           # Extract entry ID from link
           entry_id = None
@@ -193,12 +193,137 @@ def updated_scrape(recent_id: int):
   print(f"Total new entries found: {len(entries)}")
   return entries
 
+# Part 3: Clean data
+def clean_data(raw_data: list):
+  """ Convert data to desired format and remove bad data.
+  Output data is ready to be procseed by LLM.
+  Adapted from Module 2 assignment.
+  """
 
-def save_data(input_data: list, output_file: str):
-  """ Save scraped data into json file"""
+  clean_data_list = []
+
+  for entry in raw_data:  # each entry one applicant's data
+    clean_entry = {}  # holds entry after cleaning
+
+    # Clean numbers out of school name using Regex
+    RE_NUM_PAT = r"\d"
+    if "school" not in entry or re.search(RE_NUM_PAT, entry["school"]) is None:
+      pass
+    else:
+      entry["school"] = re.sub(RE_NUM_PAT, "", entry["school"])
+
+    # Clean HTML tags with Regex
+    RE_TAG_PAT = r"<[^>]+>"
+    if entry["comments"] is None:
+      pass
+    else:
+      entry["comments"] = re.sub(RE_TAG_PAT, "", entry["comments"])
+
+    # Old entries use a differemt "term" format
+    # (e.g. old:F18, new:Fall 2018), use Regex to standardize
+    RE_TERM_PAT = r"^[A-Za-z]\d{2}$"
+    if "semester_year" not in entry or re.search(
+        RE_TERM_PAT, entry["semester_year"]) is None:
+      pass
+    else:
+      if entry["semester_year"][0] == "F":
+        entry["semester_year"] = f"Fall 20{entry['semester_year'][1:]}"
+      elif entry["semester_year"][0] == "S":
+        entry["semester_year"] = f"Spring 20{entry['semester_year'][1:]}"
+
+    # Format everything as in assignment brief
+    if "program" in entry and "school" in entry:
+      program = entry["program"]
+      school = entry["school"]
+      clean_entry["program"] = f"{program}, {school}"
+    else:
+      clean_entry["program"] = None
+
+    clean_entry[
+        "comments"] = entry["comments"] if "comments" in entry else None
+    clean_entry[
+        "date_added"] = entry["date_added"] if "date_added" in entry else None
+    clean_entry["url"] = entry["link"] if "link" in entry else None
+    clean_entry["status"] = entry["status"] if "status" in entry else None
+    clean_entry[
+        "term"] = entry["semester_year"] if "semester_year" in entry else None
+    clean_entry["US/International"] = entry[
+        "citizenship"] if "citizenship" in entry else None
+    clean_entry["Degree"] = entry["degree"] if "degree" in entry else None
+    clean_entry["GRE"] = entry["GRE"] if "GRE" in entry else None
+    clean_entry["GRE_V"] = entry["GRE_V"] if "GRE_V" in entry else None
+    clean_entry["GPA"] = entry["GPA"] if "GPA" in entry else None
+    clean_entry["GRE_AW"] = entry["GRE_AW"] if "GRE_AW" in entry else None
+
+    clean_data_list.append(clean_entry)
+
+  return clean_data_list
+
+
+def save_clean_data(input_data: list, output_file: str):
+  """ Save cleaned data as json file"""
   data_json = json.dumps(input_data, indent=4)  # convert list data to json
   with open(output_file, "w") as writer:
     writer.write(data_json)
+
+
+def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
+  """
+  Process cleaned data through the LLM app.
+  """
+  import subprocess
+  import tempfile
+  import os
+  
+  # Create temporary files for input and output
+  with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_input:
+    json.dump(cleaned_data, temp_input, indent=2)
+    temp_input_path = temp_input.name
+  
+  try:
+    # Create temporary output file
+    temp_output_path = temp_input_path + '.jsonl'
+    
+    # Path to the LLM app
+    llm_app_path = os.path.join('llm_hosting', 'llm_hosting', 'app.py')
+    
+    # Run the LLM app to process the data
+    print(f"Processing {len(cleaned_data)} entries through LLM for standardization...")
+    result = subprocess.run([
+      'python', llm_app_path,
+      '--file', temp_input_path,
+      '--out', temp_output_path
+    ], capture_output=True, text=True, cwd='.')
+    
+    if result.returncode != 0:
+      print(f"LLM processing failed: {result.stderr}")
+      return cleaned_data  # Return original data if processing fails
+    
+    # Read the processed JSONL output
+    processed_data = []
+    if os.path.exists(temp_output_path):
+      with open(temp_output_path, 'r', encoding='utf-8') as f:
+        for line in f:
+          if line.strip():
+            processed_data.append(json.loads(line.strip()))
+    
+    print(f"Successfully processed {len(processed_data)} entries with LLM standardization")
+    
+    # Save to output file if specified
+    if output_file:
+      with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(processed_data, f, indent=4, ensure_ascii=False)
+      print(f"LLM-processed data saved to: {output_file}")
+    
+    return processed_data
+    
+  finally:
+    # Clean up temporary files
+    for temp_file in [temp_input_path, temp_input_path + '.jsonl']:
+      if os.path.exists(temp_file):
+        os.unlink(temp_file)
+
+
 
 
 # End functions, start processing
@@ -210,5 +335,13 @@ if current_recent is None:
   current_recent = 0
 
 new_results = updated_scrape(current_recent)
-print(new_results)
+# close connection, proceed with data cleaning
 conn.close()
+
+# Preliminary clean data
+new_clean_data = clean_data(new_results)
+
+# Run through LLM
+llm_extend_data = process_data_with_llm(new_clean_data, "new_llm_extend.json")
+
+

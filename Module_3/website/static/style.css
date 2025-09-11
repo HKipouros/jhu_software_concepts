@@ -1,0 +1,13 @@
+h1 {
+  color: #f9f7fa;
+  text-align: left;
+  padding: 20px;
+  background-color: #280142;
+  border-bottom: 2px solid #000307;
+}
+
+p {
+  text-align: left;
+  font-size: 1.2em;
+  color: #495057;
+}
