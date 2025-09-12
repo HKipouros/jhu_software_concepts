@@ -4,6 +4,7 @@
 {% block header %}Grad School Cafe Data Analysis{% endblock header %}
 {% block content %} 
 <h2>Analysis</h2>
-<p>Some content about the questions and answers here.
-</p>
+{% for value in queries.values()%}
+<li><strong>{{ value[0] }}:</strong> {{ value[1] }}</li>
+{% endfor %}
 {% endblock content %}

@@ -1,9 +1,9 @@
 import os
-import psycopg2
+import psycopg
 import json
 
 # Connect to the database
-conn = psycopg2.connect(os.environ["DATABASE_URL"])
+conn = psycopg.connect(os.environ["DATABASE_URL"])
 
 def data_to_base(FILENAME: str):
     """

@@ -5,7 +5,7 @@ Comprises determining most recent entry in database, scraping new data from Grad
 import os
 import re
 from sre_constants import NOT_LITERAL
-import psycopg2
+import psycopg
 import json
 from bs4 import BeautifulSoup
 import urllib3
@@ -13,7 +13,7 @@ import urllib3
 # Part 1: Determine most recent entry in database currently (based on url entry id)
 
 # Connect to the database
-conn = psycopg2.connect(os.environ["DATABASE_URL"])
+conn = psycopg.connect(os.environ["DATABASE_URL"])
 
 
 def find_recent():
