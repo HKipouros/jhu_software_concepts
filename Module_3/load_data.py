@@ -5,6 +5,7 @@ import json
 # Connect to the database
 conn = psycopg.connect(os.environ["DATABASE_URL"])
 
+
 def data_to_base(FILENAME: str):
     """
     Function to add applicant data from json file to database
@@ -79,6 +80,7 @@ def data_to_base(FILENAME: str):
 
     # Close the connection
     conn.close()
+
 
 if __name__ == "__main__":
     input_file = "llm_extend_applicant_data.json"

@@ -114,7 +114,9 @@ def updated_scrape(recent_id: int):
           entry["date_added"] = tds[2].get_text(strip=True)
           entry["status"] = tds[3].get_text(strip=True)
           link_tag = tds[4].find('a', href=True)
-          entry["link"] = "https://www.thegradcafe.com" + str(link_tag.get("href", "")) if link_tag and link_tag.get("href") else None
+          entry["link"] = "https://www.thegradcafe.com" + str(
+              link_tag.get("href",
+                           "")) if link_tag and link_tag.get("href") else None
 
           # Extract entry ID from link
           entry_id = None
@@ -192,6 +194,7 @@ def updated_scrape(recent_id: int):
 
   print(f"Total new entries found: {len(entries)}")
   return entries
+
 
 # Part 3: Clean data
 def clean_data(raw_data: list):
@@ -274,31 +277,36 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
   import subprocess
   import tempfile
   import os
-  
+
   # Create temporary files for input and output
-  with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_input:
+  with tempfile.NamedTemporaryFile(mode='w', suffix='.json',
+                                   delete=False) as temp_input:
     json.dump(cleaned_data, temp_input, indent=2)
     temp_input_path = temp_input.name
-  
+
   try:
     # Create temporary output file
     temp_output_path = temp_input_path + '.jsonl'
-    
+
     # Path to the LLM app
     llm_app_path = os.path.join('llm_hosting', 'llm_hosting', 'app.py')
-    
+
     # Run the LLM app to process the data
-    print(f"Processing {len(cleaned_data)} entries through LLM for standardization...")
+    print(
+        f"Processing {len(cleaned_data)} entries through LLM for standardization..."
+    )
     result = subprocess.run([
-      'python', llm_app_path,
-      '--file', temp_input_path,
-      '--out', temp_output_path
-    ], capture_output=True, text=True, cwd='.')
-    
+        'python', llm_app_path, '--file', temp_input_path, '--out',
+        temp_output_path
+    ],
+                            capture_output=True,
+                            text=True,
+                            cwd='.')
+
     if result.returncode != 0:
       print(f"LLM processing failed: {result.stderr}")
       return cleaned_data  # Return original data if processing fails
-    
+
     # Read the processed JSONL output
     processed_data = []
     if os.path.exists(temp_output_path):
@@ -306,17 +314,19 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
         for line in f:
           if line.strip():
             processed_data.append(json.loads(line.strip()))
-    
-    print(f"Successfully processed {len(processed_data)} entries with LLM standardization")
-    
+
+    print(
+        f"Successfully processed {len(processed_data)} entries with LLM standardization"
+    )
+
     # Save to output file if specified
     if output_file:
       with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(processed_data, f, indent=4, ensure_ascii=False)
       print(f"LLM-processed data saved to: {output_file}")
-    
+
     return processed_data
-    
+
   finally:
     # Clean up temporary files
     for temp_file in [temp_input_path, temp_input_path + '.jsonl']:
@@ -324,24 +334,22 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
         os.unlink(temp_file)
 
 
-
-
 # End functions, start processing
-current_recent = find_recent()
+if __name__ == "__main__":
+  current_recent = find_recent()
 
-# Handle the case where there are no URLs in the database
-if current_recent is None:
-  # Start from ID 0 if no previous entries exist
-  current_recent = 0
+  # Handle the case where there are no URLs in the database
+  if current_recent is None:
+    # Start from ID 0 if no previous entries exist
+    current_recent = 0
 
-new_results = updated_scrape(current_recent)
-# close connection, proceed with data cleaning
-conn.close()
+  new_results = updated_scrape(current_recent)
+  # close connection, proceed with data cleaning
+  conn.close()
 
-# Preliminary clean data
-new_clean_data = clean_data(new_results)
+  # Preliminary clean data
+  new_clean_data = clean_data(new_results)
 
-# Run through LLM
-llm_extend_data = process_data_with_llm(new_clean_data, "new_llm_extend.json")
-
-
+  # Run through LLM
+  llm_extend_data = process_data_with_llm(new_clean_data,
+                                          "new_llm_extend.json")
