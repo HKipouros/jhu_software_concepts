@@ -1,8 +1,12 @@
 """ Creates Flask object and runs web application"""
 
-from flask import Flask
-from pages import pages
 import os
+import sys
+from flask import Flask
+
+# Add current directory to Python path to ensure local imports work
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pages import pages
 
 # instantiate app
 app = Flask(__name__)
