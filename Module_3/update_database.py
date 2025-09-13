@@ -10,19 +10,18 @@ import json
 from bs4 import BeautifulSoup
 import urllib3
 
-# Part 1: Determine most recent entry in database currently (based on url entry id)
+# Part 1: Determine most recent entry in database currently (based on url entry id).
 
-# Connect to the database
+# Connect to the database.
 conn = psycopg.connect(os.environ["DATABASE_URL"])
 
 
 def find_recent():
-  """
-  Function to find most recent entry in database"""
+  """Function to find most recent entry in database."""
 
-  # Create a cursor object
+  # Create a cursor object.
   with conn.cursor() as cur:
-    # Query to get all URLs from the database
+    # Query to get all URLs from the database.
     cur.execute("SELECT url FROM applicants WHERE url IS NOT NULL;")
     urls = cur.fetchall()
 
@@ -32,24 +31,20 @@ def find_recent():
     max_number = 0
     recent_url = None
 
-    # Extract number from each URL and find the maximum
+    # Extract number from each URL and find the maximum.
     for (url, ) in urls:
       try:
-        # Extract the number from the end of the URL
-        # Split by '/' and get the last part
         url_parts = url.split('/')
         if url_parts:
-          # Get the last part and convert to integer
           number = int(url_parts[-1])
           if number > max_number:
             max_number = number
             recent_url = url
       except (ValueError, IndexError):
-        # Skip URLs that don't have a valid number at the end
+        # Skip URLs that don't have a valid number at the end.
         continue
 
   return int(max_number)
-
 
 # Part 2: Scrape new data from TheGradCafe. "New" means data that is not already contained in our database, which is determined by entry id (found at end of entry url).
 
@@ -74,15 +69,15 @@ def updated_scrape(recent_id: int):
 
   while iter_var <= max_pages and not found_recent_entry:
 
-    # Open GradCafe webpage using try/except
+    # Open GradCafe webpage using try/except.
     url = f"{BASE_URL}{str(iter_var)}"
     try:
       page = http.request("GET", url)
 
-      # Generate BeautifulSoup object for webpage
+      # Generate BeautifulSoup object for webpage.
       soup = BeautifulSoup(page.data.decode("utf-8"), features="lxml")
 
-      # Grad data in "tbody" section, each entry comprised of one or more "tr"
+      # Grad data in "tbody" section, each entry comprised of one or more "tr".
       tbodies = soup.find("tbody")
       if not tbodies:
         print(f"No data found on page {iter_var}")
@@ -95,10 +90,10 @@ def updated_scrape(recent_id: int):
       while i < len(rows):
         row = rows[i]
 
-        # Check if row is a main data row (has 5 tds) and extract data
+        # Check if row is a main data row (has 5 tds) and extract data.
         tds = row.find_all('td')
         if len(tds) == 5:
-          entry = {}  # individual applicant entry data
+          entry = {}  
 
           entry["school"] = tds[0].get_text(strip=True)
           program_div = tds[1].find("div")
@@ -118,7 +113,7 @@ def updated_scrape(recent_id: int):
               link_tag.get("href",
                            "")) if link_tag and link_tag.get("href") else None
 
-          # Extract entry ID from link
+          # Extract entry ID from link.
           entry_id = None
           if entry["link"]:
             try:
@@ -126,7 +121,7 @@ def updated_scrape(recent_id: int):
             except (ValueError, IndexError):
               entry_id = None
 
-          # Check if this entry is older than our recent_id
+          # Check if this entry is older than our recent_id.
           if entry_id and entry_id <= recent_id:
             print(
                 f"Found entry ID {entry_id} <= recent_id {recent_id}, stopping scrape"
@@ -134,7 +129,7 @@ def updated_scrape(recent_id: int):
             found_recent_entry = True
             break
 
-          # Check for next row (contains additional data if it exists)
+          # Check for next row (contains additional data if it exists).
           metadata_row = rows[i + 1] if (i + 1 < len(rows)) else None
           if metadata_row and ("colspan" in str(metadata_row.get("class", []))
                                or metadata_row.find("td", colspan=True)):
@@ -156,7 +151,7 @@ def updated_scrape(recent_id: int):
               elif "GRE" in text:
                 entry["GRE"] = text.split()[-1]
 
-          # Check for next (row contains comments if row exists)
+          # Check for next (row contains comments if row exists).
           comment_row = rows[i + 2] if (i + 2 < len(rows)) else None
           if comment_row and comment_row.find('p'):
             entry["comments"] = comment_row.get_text(strip=True)
@@ -182,17 +177,6 @@ def updated_scrape(recent_id: int):
       print(f"Unexpected error on page {iter_var}: {e}")
       break
 
-  # Summary
-  if found_recent_entry:
-    print(
-        f"Scraping completed: Found recent entry, stopped at page {iter_var-1}"
-    )
-  else:
-    print(
-        f"Scraping completed: Reached maximum pages ({max_pages}) or no more data"
-    )
-
-  print(f"Total new entries found: {len(entries)}")
   return entries
 
 
@@ -205,17 +189,17 @@ def clean_data(raw_data: list):
 
   clean_data_list = []
 
-  for entry in raw_data:  # each entry one applicant's data
-    clean_entry = {}  # holds entry after cleaning
+  for entry in raw_data:  
+    clean_entry = {} 
 
-    # Clean numbers out of school name using Regex
+    # Clean numbers out of school name using Regex.
     RE_NUM_PAT = r"\d"
     if "school" not in entry or re.search(RE_NUM_PAT, entry["school"]) is None:
       pass
     else:
       entry["school"] = re.sub(RE_NUM_PAT, "", entry["school"])
 
-    # Clean HTML tags with Regex
+    # Clean HTML tags with Regex.
     RE_TAG_PAT = r"<[^>]+>"
     if entry["comments"] is None:
       pass
@@ -223,7 +207,7 @@ def clean_data(raw_data: list):
       entry["comments"] = re.sub(RE_TAG_PAT, "", entry["comments"])
 
     # Old entries use a differemt "term" format
-    # (e.g. old:F18, new:Fall 2018), use Regex to standardize
+    # (e.g. old:F18, new:Fall 2018), use Regex to standardize.
     RE_TERM_PAT = r"^[A-Za-z]\d{2}$"
     if "semester_year" not in entry or re.search(
         RE_TERM_PAT, entry["semester_year"]) is None:
@@ -234,7 +218,7 @@ def clean_data(raw_data: list):
       elif entry["semester_year"][0] == "S":
         entry["semester_year"] = f"Spring 20{entry['semester_year'][1:]}"
 
-    # Format everything as in assignment brief
+    # Format everything as in assignment brief.
     if "program" in entry and "school" in entry:
       program = entry["program"]
       school = entry["school"]
@@ -262,14 +246,6 @@ def clean_data(raw_data: list):
 
   return clean_data_list
 
-
-def save_clean_data(input_data: list, output_file: str):
-  """ Save cleaned data as json file"""
-  data_json = json.dumps(input_data, indent=4)  # convert list data to json
-  with open(output_file, "w") as writer:
-    writer.write(data_json)
-
-
 def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
   """
   Process cleaned data through the LLM app.
@@ -278,20 +254,20 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
   import tempfile
   import os
 
-  # Create temporary files for input and output
+  # Create temporary files for input and output.
   with tempfile.NamedTemporaryFile(mode='w', suffix='.json',
                                    delete=False) as temp_input:
     json.dump(cleaned_data, temp_input, indent=2)
     temp_input_path = temp_input.name
 
   try:
-    # Create temporary output file
+    # Create temporary output file.
     temp_output_path = temp_input_path + '.jsonl'
 
     # Path to the LLM app
     llm_app_path = os.path.join('llm_hosting', 'llm_hosting', 'app.py')
 
-    # Run the LLM app to process the data
+    # Run the LLM app to process the data.
     print(
         f"Processing {len(cleaned_data)} entries through LLM for standardization..."
     )
@@ -307,17 +283,13 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
       print(f"LLM processing failed: {result.stderr}")
       return cleaned_data  # Return original data if processing fails
 
-    # Read the processed JSONL output
+    # Read the processed JSONL output.
     processed_data = []
     if os.path.exists(temp_output_path):
       with open(temp_output_path, 'r', encoding='utf-8') as f:
         for line in f:
           if line.strip():
             processed_data.append(json.loads(line.strip()))
-
-    print(
-        f"Successfully processed {len(processed_data)} entries with LLM standardization"
-    )
 
     # Save to output file if specified
     if output_file:
@@ -333,8 +305,6 @@ def process_data_with_llm(cleaned_data: list, output_file: str | None = None):
       if os.path.exists(temp_file):
         os.unlink(temp_file)
 
-
-# End functions, start processing
 if __name__ == "__main__":
   current_recent = find_recent()
 
