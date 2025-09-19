@@ -1,0 +1,16 @@
+================================== tests coverage ==================================
+_________________ coverage: platform linux, python 3.11.13-final-0 _________________
+
+Name                      Stmts   Miss  Cover   Missing
+-------------------------------------------------------
+src/__init__.py               0      0   100%
+src/load_data.py             32      3    91%   89-91
+src/query_data.py            83      6    93%   161-166
+src/update_database.py      184     41    78%   107-108, 137-153, 160, 167, 177-179, 206, 217-220, 286-287, 299-301, 313-328
+src/website/__init__.py       0      0   100%
+src/website/app.py           11      2    82%   21-23
+src/website/pages.py         68      0   100%
+-------------------------------------------------------
+TOTAL                       378     52    86%
+FAIL Required test coverage of 100% not reached. Total coverage: 86.24%
+47 passed, 53 warnings in 54.25s

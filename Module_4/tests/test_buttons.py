@@ -325,3 +325,174 @@ def test_another_button_click_busy_vs_normal(client, monkeypatch):
 
     finally:
         pages.is_updating = original_updating
+
+
+@pytest.mark.buttons
+def test_button_click_edge_cases(monkeypatch):
+    """Test edge cases in button_click function for 100% coverage"""
+    from src.website.pages import button_click
+    import src.website.pages as pages_module
+    
+    # Test case: render_template when is_updating=True
+    def mock_render_template(template, **kwargs):
+        return f"TEMPLATE: {template} with {kwargs}"
+    
+    # Apply mocks
+    monkeypatch.setattr('src.website.pages.render_template', mock_render_template)
+    monkeypatch.setattr('src.website.pages.is_updating', True)
+    
+    # Execute function when updating
+    result = button_click()
+    
+    # Verify render_template path is taken
+    assert "TEMPLATE: home.html" in result
+    assert "Update is already in progress" in result
+    
+    # Reset for next tests
+    monkeypatch.setattr('src.website.pages.is_updating', False)
+    
+    # Test case: find_recent returns None (recent_result = 0)
+    flash_messages = []
+    def mock_flash(message):
+        flash_messages.append(message)
+    
+    def mock_redirect(url):
+        return f"REDIRECT: {url}"
+    
+    def mock_url_for(endpoint):
+        return f"URL: {endpoint}"
+    
+    def mock_run_queries():
+        return {}
+    
+    def mock_find_recent():
+        return None  # This triggers recent_result = 0
+    
+    def mock_updated_scrape(recent_result):
+        return ["entry1", "entry2"]  # Return some entries
+    
+    def mock_clean_data(entries):
+        return []  # Return empty list to trigger "no valid entries found"
+    
+    # Apply mocks for find_recent = None scenario  
+    monkeypatch.setattr('src.website.pages.flash', mock_flash)
+    monkeypatch.setattr('src.website.pages.redirect', mock_redirect)
+    monkeypatch.setattr('src.website.pages.url_for', mock_url_for)
+    monkeypatch.setattr('src.website.pages.run_queries', mock_run_queries)
+    monkeypatch.setattr('src.website.pages.find_recent', mock_find_recent)
+    monkeypatch.setattr('src.website.pages.updated_scrape', mock_updated_scrape)
+    monkeypatch.setattr('src.website.pages.clean_data', mock_clean_data)
+    
+    try:
+        # Execute button_click
+        result = button_click()
+        
+        # Verify the clean_data failure path
+        assert "Data cleaning failed - no valid entries found" in flash_messages
+        assert "REDIRECT: URL: pages.home" in result
+        
+    finally:
+        # Reset is_updating
+        pages_module.is_updating = False
+
+
+@pytest.mark.buttons  
+def test_button_click_no_scraped_entries(monkeypatch):
+    """Test button_click when no new entries are scraped"""
+    from src.website.pages import button_click
+    import src.website.pages as pages_module
+    
+    flash_messages = []
+    def mock_flash(message):
+        flash_messages.append(message)
+    
+    def mock_redirect(url):
+        return f"REDIRECT: {url}"
+    
+    def mock_url_for(endpoint):
+        return f"URL: {endpoint}"
+    
+    def mock_run_queries():
+        return {}
+    
+    def mock_find_recent():
+        return 100
+    
+    def mock_updated_scrape(recent_result):
+        return []  # No new entries
+    
+    # Apply mocks
+    monkeypatch.setattr('src.website.pages.flash', mock_flash)
+    monkeypatch.setattr('src.website.pages.redirect', mock_redirect)
+    monkeypatch.setattr('src.website.pages.url_for', mock_url_for)
+    monkeypatch.setattr('src.website.pages.run_queries', mock_run_queries)
+    monkeypatch.setattr('src.website.pages.find_recent', mock_find_recent)
+    monkeypatch.setattr('src.website.pages.updated_scrape', mock_updated_scrape)
+    monkeypatch.setattr('src.website.pages.is_updating', False)
+    
+    try:
+        # Execute button_click
+        result = button_click()
+        
+        # Verify the no scraped entries path
+        assert "No new entries to scrape" in flash_messages
+        assert "REDIRECT: URL: pages.home" in result
+        
+    finally:
+        # Reset is_updating
+        pages_module.is_updating = False
+
+
+@pytest.mark.buttons
+def test_button_click_llm_processing_fails(monkeypatch):
+    """Test button_click when LLM processing fails"""
+    from src.website.pages import button_click
+    import src.website.pages as pages_module
+    
+    flash_messages = []
+    def mock_flash(message):
+        flash_messages.append(message)
+    
+    def mock_redirect(url):
+        return f"REDIRECT: {url}"
+    
+    def mock_url_for(endpoint):
+        return f"URL: {endpoint}"
+    
+    def mock_run_queries():
+        return {}
+    
+    def mock_find_recent():
+        return 100
+    
+    def mock_updated_scrape(recent_result):
+        return ["entry1", "entry2"]
+    
+    def mock_clean_data(entries):
+        return ["cleaned1", "cleaned2"]
+    
+    def mock_process_data_with_llm(cleaned_data):
+        return []  # LLM processing fails
+    
+    # Apply mocks
+    monkeypatch.setattr('src.website.pages.flash', mock_flash)
+    monkeypatch.setattr('src.website.pages.redirect', mock_redirect)
+    monkeypatch.setattr('src.website.pages.url_for', mock_url_for)
+    monkeypatch.setattr('src.website.pages.run_queries', mock_run_queries)
+    monkeypatch.setattr('src.website.pages.find_recent', mock_find_recent)
+    monkeypatch.setattr('src.website.pages.updated_scrape', mock_updated_scrape)
+    monkeypatch.setattr('src.website.pages.clean_data', mock_clean_data)
+    monkeypatch.setattr('src.website.pages.process_data_with_llm', mock_process_data_with_llm)
+    monkeypatch.setattr('src.website.pages.is_updating', False)
+    
+    try:
+        # Execute button_click
+        result = button_click()
+        
+        # Verify the LLM processing failure path
+        assert "LLM processing failed - no data to add" in flash_messages
+        assert "REDIRECT: URL: pages.home" in result
+        
+    finally:
+        # Reset is_updating
+        pages_module.is_updating = False

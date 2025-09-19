@@ -36,6 +36,63 @@ def test_round(client):
       answer = query_div.find("p")
       dec_pat = r"\b\d+\.\d{2}\b" # Regex pattern to verify numbers are to two decimal places.
       assert re.search(dec_pat, answer.text.strip())
-  
+
+
+@pytest.mark.analysis
+def test_query_data_edge_cases(monkeypatch):
+    """Test edge cases in query_data.py for 100% coverage"""
+    from src.query_data import run_queries
     
-  
+    # Test different GPA comparison scenarios
+    test_scenarios = [
+        # VT higher than UVA
+        (3.4, 3.6, "Virginia Tech (gpa = 3.6) had a higher average GPA than the University of Virginia (gpa = 3.4)"),
+        # Only UVA data
+        (3.5, None, "Only University of Virginia has data (gpa = 3.5)"),
+        # Only VT data
+        (None, 3.7, "Only Virginia Tech has data (gpa = 3.7)"),
+        # No data for either
+        (None, None, "No GPA data available for either university")
+    ]
+    
+    for uva_gpa, vt_gpa, expected_text in test_scenarios:
+        # Mock database operations
+        class MockCursor:
+            def __init__(self, uva_result, vt_result):
+                self.uva_result = uva_result
+                self.vt_result = vt_result
+                self.queries = []
+                
+            def execute(self, query, params=None):
+                self.queries.append(query)
+                self.params = params
+                
+            def fetchone(self):
+                # Return specific results for the UVA/VT GPA comparison query
+                if "uva_gpa" in self.queries[-1]:
+                    return (self.uva_result, self.vt_result)
+                return (42,)  # Default for other queries
+                
+            def __enter__(self):
+                return self
+                
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+        
+        class MockConnection:
+            def __init__(self, uva_result, vt_result):
+                self.uva_result = uva_result
+                self.vt_result = vt_result
+                
+            def cursor(self):
+                return MockCursor(self.uva_result, self.vt_result)
+        
+        # Apply mock
+        monkeypatch.setattr('src.query_data.conn', MockConnection(uva_gpa, vt_gpa))
+        
+        # Execute function
+        results = run_queries()
+        
+        # Verify specific edge case is covered
+        result_10 = results["10"][1]
+        assert expected_text in result_10
