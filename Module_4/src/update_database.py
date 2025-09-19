@@ -1,7 +1,24 @@
 """
-Update the database with new data scraped from GradCafe.
-Comprises determining most recent entry in database, scraping new data from GradCafe, performing initial clean on data, and applying LLM to data.
+The module obtains new data for a PostgreSQL database by performing the following steps:
+1. Identifies the most recent entry in the database by extracting entry IDs from URLs.
+2. Scrapes new applicant data from TheGradCafe, stopping once previously recorded entries are encountered.
+3. Cleans and formats the scraped data to standardize it and remove inconsistencies.
+4. Processes the cleaned data using an LLM to enrich or standardize information.
+
+Dependencies:
+    - os
+    - re
+    - json
+    - psycopg
+    - urllib3
+    - BeautifulSoup (bs4)
+    - subprocess
+    - tempfile
+
+Environment Variables:
+    DATABASE_URL (str): PostgreSQL connection string used to connect to the database.
 """
+
 import os
 import re
 from sre_constants import NOT_LITERAL

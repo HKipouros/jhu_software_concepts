@@ -1,4 +1,28 @@
-"""Control website pages with Flask blueprint."""
+"""
+This module defines routes for rendering the homepage and handling user actions
+such as pulling new data from The Grad Cafe and updating analysis results.
+It connects to a PostgreSQL database to store processed data entries.
+
+Routes:
+    - "/" : Renders the homepage with query results.
+    - "/button-click" : Triggers data scrape, cleaning, LLM processing, and DB update.
+    - "/another-button-click" : Refreshes the homepage with updated analysis.
+
+Functions:
+    - home() : Render homepage with data from queries.
+    - button_click() : Pull data, process it, and update the database.
+    - another_button_click() : Refresh analysis without pulling new data.
+
+Environment Variables:
+    - DATABASE_URL: PostgreSQL connection string.
+
+Dependencies:
+    - Flask
+    - psycopg
+    - Custom modules: run_queries, find_recent, updated_scrape,
+      clean_data, process_data_with_llm
+"""
+
 import sys
 import os
 

@@ -1,5 +1,21 @@
 """
-Takes in applicant data from The Grad Cafe and loads to a PostgreSQL database.
+This module reads JSON data containing applicant details, creates (or resets) the
+`applicants` table, and inserts the data into the table.
+
+Intended to be run manually or used as a utility during data updates.
+
+Environment Variables:
+    DATABASE_URL (str): PostgreSQL connection string used to connect to the database.
+
+Usage:
+    python update_database.py
+
+Input:
+    JSON file (e.g., 'llm_extend_applicant_data.json') with a list of applicant entries.
+
+Each entry should include:
+    - program, comments, date_added, url, status, term, US/International,
+      GPA, GRE, GRE_V, GRE_AW, Degree, llm-generated-program, llm-generated-university
 """
 
 import os
@@ -8,6 +24,7 @@ import json
 
 # Connect to the database.
 conn = psycopg.connect(os.environ["DATABASE_URL"])
+
 
 def data_to_base(FILENAME: str):
     """
@@ -85,7 +102,8 @@ def data_to_base(FILENAME: str):
     # Close the connection.
     conn.close()
 
+
 if __name__ == "__main__":
-    input_file = "llm_extend_applicant_data.json" # Data file obtained in Mod 2
+    input_file = "llm_extend_applicant_data.json"  # Data file obtained in Mod 2
     data_to_base(input_file)
     print("Done!!")

@@ -1,5 +1,17 @@
-""" Creates Flask object and runs web application to display data from The Grad Cafe"""
+"""
+This module sets up a Flask app, registers blueprints, and starts the server.
+It is intended to be run as the main module.
 
+Usage:
+    python main.py
+
+Environment Variables:
+    PORT (optional): The port number on which to run the Flask app. Defaults to 5000.
+
+Notes:
+    - This app is designed for use with Replit, which requires port 5000.
+    - The pages blueprint must be defined in the pages module.
+"""
 import os
 import sys
 from flask import Flask

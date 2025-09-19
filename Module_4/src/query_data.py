@@ -1,5 +1,25 @@
 """
-Contains queries to analyze data in the PostgreSQL database.
+This module connects to the database using the `DATABASE_URL` environment variable
+and defines a set of queries that return insights into applicant data, such as
+application volume, acceptance rates, GPA statistics, and other trends.
+
+The `run_queries()` function is used to extract a dictionary of human-readable
+questions and corresponding answers based on current data.
+
+Environment Variables:
+    DATABASE_URL (str): PostgreSQL connection string used to connect to the database.
+
+Functions:
+    run_queries() -> dict
+        Executes predefined SQL queries and returns answers with associated questions.
+
+Usage:
+    >>> from query_data import run_queries
+    >>> results = run_queries()
+    >>> print(results["1"])  # ("How many entries...", 154)
+
+Example CLI Execution:
+    $ python query_data.py
 """
 
 import os
