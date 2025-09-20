@@ -20,7 +20,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..
 # Add Module_4/src and Module_4/src/website to sys.path
 sys.path.insert(0, os.path.join(project_root, "Module_4", "src"))
 sys.path.insert(0, os.path.join(project_root, "Module_4", "src", "website"))
-
+print("sys.path:", sys.path)
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
