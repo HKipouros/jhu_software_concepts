@@ -71,7 +71,15 @@ jobs:
             degree TEXT,
             llm_generated_program TEXT,
             llm_generated_university TEXT
-          );"
+          );
+          
+          INSERT INTO applicants (program, comments, date_added, url, status, term, us_or_international, gpa, gre, gre_v, gre_aw, degree, llm_generated_program, llm_generated_university) VALUES
+          ('Computer Science, MIT', 'Strong research background', '2024-01-15', 'https://example.com/1', 'Accepted', 'Fall 2025', 'American', 3.8, 325, 160, 4.5, 'BS', 'Computer Science', 'MIT'),
+          ('Physics, Stanford University', 'Good GRE scores', '2024-01-20', 'https://example.com/2', 'Rejected', 'Fall 2025', 'International', 3.7, 320, 155, 4.0, 'BS', 'Physics', 'Stanford University'),
+          ('Biology, Harvard University', 'Research experience', '2024-02-01', 'https://example.com/3', 'Accepted', 'Fall 2024', 'American', 3.9, 330, 165, 5.0, 'BS', 'Biology', 'Harvard University'),
+          ('Chemistry, UC Berkeley', 'Good fit', '2024-02-10', 'https://example.com/4', 'Waitlisted', 'Spring 2025', 'International', 3.6, 315, 150, 3.5, 'BS', 'Chemistry', 'UC Berkeley'),
+          ('Mathematics, Caltech', 'Strong background', '2024-01-25', 'https://example.com/5', 'Accepted', 'Fall 2025', 'American', 4.0, 335, 170, 5.5, 'BS', 'Mathematics', 'Caltech');
+          "
           
       - name: Run tests
         run: pytest tests/
