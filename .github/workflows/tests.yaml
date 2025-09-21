@@ -33,6 +33,9 @@ jobs:
           
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
+
+      - name: Set environment variables
+        run: echo "DATABASE_URL=sqlite:///:memory:" >> $GITHUB_ENV
           
       - name: Run tests
         run: pytest tests/
