@@ -86,9 +86,12 @@ def test_query_data_edge_cases(monkeypatch):
                 
             def cursor(self):
                 return MockCursor(self.uva_result, self.vt_result)
+                
+            def close(self):
+                pass  # Mock close method
         
         # Apply mock
-        monkeypatch.setattr('src.query_data.conn', MockConnection(uva_gpa, vt_gpa))
+        monkeypatch.setattr('src.query_data.get_db_connection', lambda: MockConnection(uva_gpa, vt_gpa))
         
         # Execute function
         results = run_queries()

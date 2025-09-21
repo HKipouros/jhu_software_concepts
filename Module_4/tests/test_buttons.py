@@ -55,8 +55,8 @@ def test_button_click_functionality_success(client, monkeypatch):
         def close(self):
             pass
 
-    monkeypatch.setattr('src.website.pages.psycopg.connect',
-                        lambda x: MockConnection())
+    monkeypatch.setattr('src.website.pages.get_db_connection',
+                        lambda: MockConnection())
 
     try:
 
@@ -230,7 +230,7 @@ def test_mock_database_connection(client, monkeypatch):
             connection_calls.append("execute")
 
     # Apply the mock.
-    monkeypatch.setattr('src.website.pages.psycopg.connect', MockConnection)
+    monkeypatch.setattr('src.website.pages.get_db_connection', lambda: MockConnection())
 
     try:
 

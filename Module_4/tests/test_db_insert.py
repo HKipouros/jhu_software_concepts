@@ -138,8 +138,8 @@ def test_data_to_base_successful_insertion(sample_data, mock_connection,
   """Test successful data insertion to database."""
   import src.load_data as load_data
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(sample_data)
@@ -218,8 +218,8 @@ def test_data_to_base_with_none_values(mock_connection, monkeypatch):
       "llm-generated-university": None
   }]
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(none_data)
@@ -266,8 +266,8 @@ def test_data_to_base_with_empty_strings(mock_connection, monkeypatch):
       "llm-generated-university": ""
   }]
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(empty_data)
@@ -314,7 +314,7 @@ def test_data_to_base_float_conversion(mock_connection, monkeypatch):
   }]
 
   # Mock the global connection
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch
   mock_file_content = json.dumps(numeric_data)
@@ -344,8 +344,8 @@ def test_data_to_base_invalid_float_raises_error(
   """Test that invalid float values raise ValueError."""
   import src.load_data as load_data
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(sample_data_with_invalid_floats)
@@ -363,8 +363,8 @@ def test_data_to_base_file_not_found(mock_connection, monkeypatch):
   """Test FileNotFoundError when file doesn't exist."""
   import src.load_data as load_data
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations to raise FileNotFoundError.
   def mock_open_file_not_found(filename, mode='r'):
@@ -382,8 +382,8 @@ def test_data_to_base_invalid_json(mock_connection, monkeypatch):
   """Test JSONDecodeError when file contains invalid JSON."""
   import src.load_data as load_data
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations with invalid JSON.
   invalid_json = "{ invalid json content"
@@ -405,8 +405,8 @@ def test_data_to_base_empty_data_list(mock_connection, monkeypatch):
   """Test handling of empty data list."""
   import src.load_data as load_data
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations with empty list.
   empty_data = []
@@ -446,11 +446,14 @@ def test_data_to_base_database_error(sample_data, monkeypatch):
 
     def cursor(self):
       raise Exception("Database connection error")
+      
+    def close(self):
+      pass  # Mock close method
 
   mock_conn_error = MockConnectionError()
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_conn_error)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_conn_error)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(sample_data)
@@ -517,8 +520,8 @@ def test_all_field_processing_combinations(mock_connection, monkeypatch):
       "llm-generated-university": "Valid University"
   }]
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(mixed_data)
@@ -575,8 +578,8 @@ def test_cursor_context_manager_behavior(mock_connection, monkeypatch):
       "llm-generated-university": "Test University"
   }]
 
-  # Mock the global connection.
-  monkeypatch.setattr('src.load_data.conn', mock_connection)
+  # Mock the get_db_connection function.
+  monkeypatch.setattr('src.load_data.get_db_connection', lambda: mock_connection)
 
   # Mock file operations using monkeypatch.
   mock_file_content = json.dumps(test_data)
@@ -735,9 +738,12 @@ def test_find_recent_no_urls(monkeypatch):
     class MockConnection:
         def cursor(self):
             return MockCursor()
+            
+        def close(self):
+            pass  # Mock close method
     
     # Apply mock
-    monkeypatch.setattr('src.update_database.conn', MockConnection())
+    monkeypatch.setattr('src.update_database.get_db_connection', lambda: MockConnection())
     
     # Execute function
     result = find_recent()
@@ -998,9 +1004,12 @@ def test_find_recent_url_parsing_edge_cases(monkeypatch):
     class MockConnection:
         def cursor(self):
             return MockCursor()
+            
+        def close(self):
+            pass  # Mock close method
     
     # Apply mock
-    monkeypatch.setattr('src.update_database.conn', MockConnection())
+    monkeypatch.setattr('src.update_database.get_db_connection', lambda: MockConnection())
     
     # Execute function
     result = find_recent()

@@ -29,39 +29,44 @@ import urllib3
 
 # Part 1: Determine most recent entry in database currently (based on url entry id).
 
-# Connect to the database.
-conn = psycopg.connect(os.environ["DATABASE_URL"])
+
+def get_db_connection():
+    """Create and return a database connection."""
+    return psycopg.connect(os.environ["DATABASE_URL"])
 
 
 def find_recent():
   """Function to find most recent entry in database."""
+  conn = get_db_connection()
+  try:
+    # Create a cursor object.
+    with conn.cursor() as cur:
+      # Query to get all URLs from the database.
+      cur.execute("SELECT url FROM applicants WHERE url IS NOT NULL;")
+      urls = cur.fetchall()
 
-  # Create a cursor object.
-  with conn.cursor() as cur:
-    # Query to get all URLs from the database.
-    cur.execute("SELECT url FROM applicants WHERE url IS NOT NULL;")
-    urls = cur.fetchall()
+      if not urls:
+        return None
 
-    if not urls:
-      return None
+      max_number = 0
+      recent_url = None
 
-    max_number = 0
-    recent_url = None
+      # Extract number from each URL and find the maximum.
+      for (url, ) in urls:
+        try:
+          url_parts = url.split('/')
+          if url_parts:
+            number = int(url_parts[-1])
+            if number > max_number:
+              max_number = number
+              recent_url = url
+        except (ValueError, IndexError):
+          # Skip URLs that don't have a valid number at the end.
+          continue
 
-    # Extract number from each URL and find the maximum.
-    for (url, ) in urls:
-      try:
-        url_parts = url.split('/')
-        if url_parts:
-          number = int(url_parts[-1])
-          if number > max_number:
-            max_number = number
-            recent_url = url
-      except (ValueError, IndexError):
-        # Skip URLs that don't have a valid number at the end.
-        continue
-
-  return int(max_number)
+      return int(max_number)
+  finally:
+    conn.close()
 
 
 # Part 2: Scrape new data from TheGradCafe. "New" means data that is not already contained in our database, which is determined by entry id (found at end of entry url).
@@ -335,8 +340,6 @@ if __name__ == "__main__":
     current_recent = 0
 
   new_results = updated_scrape(current_recent)
-  # close connection, proceed with data cleaning
-  conn.close()
 
   # Preliminary clean data
   new_clean_data = clean_data(new_results)

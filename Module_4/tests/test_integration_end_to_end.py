@@ -134,9 +134,9 @@ def test_end_insertion(sample_data, monkeypatch):
     
     mock_connection = MockConnection()
     
-    # Mock psycopg.connect
-    def mock_psycopg_connect(database_url):
-        database_operations.append(f'CONNECT: {database_url}')
+    # Mock get_db_connection 
+    def mock_get_db_connection():
+        database_operations.append('CONNECT: DATABASE_URL')
         return mock_connection
     
     # Mock Flask functions
@@ -158,7 +158,7 @@ def test_end_insertion(sample_data, monkeypatch):
     monkeypatch.setattr('src.website.pages.updated_scrape', mock_updated_scrape)
     monkeypatch.setattr('src.website.pages.clean_data', mock_clean_data)
     monkeypatch.setattr('src.website.pages.process_data_with_llm', mock_process_data_with_llm)
-    monkeypatch.setattr('src.website.pages.psycopg.connect', mock_psycopg_connect)
+    monkeypatch.setattr('src.website.pages.get_db_connection', mock_get_db_connection)
     monkeypatch.setattr('src.website.pages.flash', mock_flash)
     monkeypatch.setattr('src.website.pages.redirect', mock_redirect)
     monkeypatch.setattr('src.website.pages.url_for', mock_url_for)
@@ -216,13 +216,11 @@ def test_end_insertion(sample_data, monkeypatch):
     # Verify database operations sequence
     # Note: button_click commits after each individual insert operation
     expected_db_ops = [
-        'CONNECT: postgresql://test:test@localhost/test',
+        'CONNECT: DATABASE_URL',
         'INSERT: Computer Science, MIT - https://gradcafe.com/1',
-        'COMMIT',  # Commit after first insert
         'INSERT: Physics, Stanford - https://gradcafe.com/2', 
-        'COMMIT',  # Commit after second insert
         'CONFLICT IGNORED: https://gradcafe.com/1',  # Duplicate URL ignored
-        'COMMIT',  # Commit after third (ignored) insert attempt
+        'COMMIT',  # Single commit for all operations
         'CLOSE'
     ]
     assert database_operations == expected_db_ops, f"Expected {expected_db_ops}, got {database_operations}"

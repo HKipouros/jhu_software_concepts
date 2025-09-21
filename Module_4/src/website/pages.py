@@ -32,6 +32,11 @@ from update_database import find_recent, updated_scrape, clean_data, process_dat
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 import psycopg
 
+
+def get_db_connection():
+    """Create and return a database connection."""
+    return psycopg.connect(os.environ["DATABASE_URL"])
+
 # Variable to keep track of first button running
 is_updating = False
 
@@ -96,45 +101,48 @@ def button_click():
 
         # Update database.
         flash(f"Updating database with {len(llm_extend_data)} new entries...")
-        conn = psycopg.connect(os.environ["DATABASE_URL"])
-
-        for entry in llm_extend_data:
-            # Prepare data
-            program = entry["program"] if entry["program"] else None
-            comments = entry["comments"] if entry["comments"] else None
-            date_added = entry["date_added"] if entry["date_added"] else None
-            url = entry["url"] if entry["url"] else None
-            status = entry["status"] if entry["status"] else None
-            term = entry["term"] if entry["term"] else None
-            us_or_international = entry["US/International"] if entry[
-                "US/International"] else None
-            gpa = float(entry["GPA"]) if entry["GPA"] else None
-            gre = float(entry["GRE"]) if entry["GRE"] else None
-            gre_v = float(entry["GRE_V"]) if entry["GRE_V"] else None
-            gre_aw = float(entry["GRE_AW"]) if entry["GRE_AW"] else None
-            degree = entry["Degree"] if entry["Degree"] else None
-            llm_generated_program = entry["llm-generated-program"] if entry[
-                "llm-generated-program"] else None
-            llm_generated_university = entry[
-                "llm-generated-university"] if entry[
-                    "llm-generated-university"] else None
-
-            # Insert
+        
+        conn = get_db_connection()
+        try:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO applicants (
-                        program, comments, date_added, url, status, term, 
-                        us_or_international, gpa, gre, gre_v, gre_aw, degree,
-                        llm_generated_program, llm_generated_university
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (url) DO NOTHING
-                    """, (program, comments, date_added, url, status, term,
-                          us_or_international, gpa, gre, gre_v, gre_aw, degree,
-                          llm_generated_program, llm_generated_university))
-            conn.commit()
+                for entry in llm_extend_data:
+                    # Prepare data
+                    program = entry["program"] if entry["program"] else None
+                    comments = entry["comments"] if entry["comments"] else None
+                    date_added = entry["date_added"] if entry["date_added"] else None
+                    url = entry["url"] if entry["url"] else None
+                    status = entry["status"] if entry["status"] else None
+                    term = entry["term"] if entry["term"] else None
+                    us_or_international = entry["US/International"] if entry[
+                        "US/International"] else None
+                    gpa = float(entry["GPA"]) if entry["GPA"] else None
+                    gre = float(entry["GRE"]) if entry["GRE"] else None
+                    gre_v = float(entry["GRE_V"]) if entry["GRE_V"] else None
+                    gre_aw = float(entry["GRE_AW"]) if entry["GRE_AW"] else None
+                    degree = entry["Degree"] if entry["Degree"] else None
+                    llm_generated_program = entry["llm-generated-program"] if entry[
+                        "llm-generated-program"] else None
+                    llm_generated_university = entry[
+                        "llm-generated-university"] if entry[
+                            "llm-generated-university"] else None
 
-        conn.close()
+                    # Insert
+                    cur.execute(
+                        """
+                        INSERT INTO applicants (
+                            program, comments, date_added, url, status, term, 
+                            us_or_international, gpa, gre, gre_v, gre_aw, degree,
+                            llm_generated_program, llm_generated_university
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (url) DO NOTHING
+                        """, (program, comments, date_added, url, status, term,
+                              us_or_international, gpa, gre, gre_v, gre_aw, degree,
+                              llm_generated_program, llm_generated_university))
+            
+            # Commit all changes at once
+            conn.commit()
+        finally:
+            conn.close()
 
         # Success message
         flash(
