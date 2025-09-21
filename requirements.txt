@@ -2,3 +2,4 @@ sphinx
 sphinx_rtd_theme
 psycopg[binary]
 flask
+beautifulsoup4
