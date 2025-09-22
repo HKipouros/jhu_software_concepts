@@ -1,0 +1,11 @@
+Name: Holly Kipouros (hkipour1)
+
+Module Info: Module 4: Pytest and Sphinx due 09/22/2025 at 11:59 PM EST
+
+SSH url to GitHub repo -  git@github.com:HKipouros/jhu_software_concepts.git
+
+Url to Read the Docs - https://jhu-software-concepts-rtd-hk.readthedocs.io/en/latest/
+
+Approach: A Pytest suite for testing was developed within the /tests folder. Within the test_analysis_format module I made use of Beautiful Soup to parse webpage output and developed Regex patterns to test that the webpage format is as desired. The test_flask_page module also makes use of Regex to test for the presence of content. The test_buttons, test_db_insert, and test_integration_end_to_end modules use Monkey Patch to mock connection to the database, and I additionally generated fake database data to mimic what we would expect to encounter from actual scraped data. Testing was developed in Replit and I prompted the Replit agent to assist with the more complex mocking tests. For interaction with GitHub actions, I also prompted the Replit agent to generate a tests.yaml file. However, I manually edited much of the contents to fix dependency issues, as my development environment included only Module_4 whereas my GitHub repository includes other modules.
+
+Known bugs- Pytest coverage is 75 percent instead of 100 percent, due to the need for complex mocking to test the "edge case" scenarios in the update_database.py program as currently written. Given additional time, I would go about fixing this by either using the "given, when, then" approach to draft tests for this portion of the source code, or reworking the source code to be more streamlined (possibly the untested code could be removed to give the same end result, while incurring a small but acceptable risk of edge cases). The coverage of pages.py, which is largely responsible for generating the webpage content, is at 99 percent. NOTE: for the purpose of testing a minimal GitHub Actions workflow, I temporarily amended the pytest.ini to require 70 percent or better coverage in order to ensure all my current tests were working (even if coverage was not a perfect 100 percent).
