@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Grad School Cafe Data Analysis{% endblock %}
+{% block header %}Grad School Cafe Data Analysis{% endblock %}
+
+{% block content %} 
+<!-- Button Section - Top Left and Top Right -->
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+  <div>
+    <form method="POST" action="{{ url_for('pages.button_click') }}" style="display: inline;">
+      <button type="submit" title="Click to pull new data" style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Pull Data
+      </button>
+    </form>
+  </div>
+  <div>
+    <form method="POST" action="{{ url_for('pages.another_button_click') }}" style="display: inline;">
+      <button type="submit" title="Click to update analysis" style="padding: 10px 20px; font-size: 16px; background-color: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Update Analysis
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if message %}
+<div style="margin-top: 15px; color: #4CAF50; font-weight: bold; font-size: 18px;">
+  {{ message }}
+</div>
+{% endif %}
+
+<h2>Analysis</h2>
+{% for value in queries.values()%}
+<div class='query'>
+  <h3>{{ value[0] }}</h3>
+  <i><p>Answer: {{ value[1] }}</p></i>
+</div>
+{% endfor %}
+{% endblock %}
