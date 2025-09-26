@@ -41,8 +41,27 @@ def find_recent():
     try:
         # Create a cursor object.
         with conn.cursor() as cur:  # pylint: disable=E1101
+
+            # Determine total number of rows in db for limit setting
+            count_query = psycopg.sql.SQL(
+                "SELECT COUNT(*) FROM {table}").format(
+                    table=psycopg.sql.Identifier("applicants"))
+            cur.execute(count_query)
+            row = cur.fetchone()
+            total_rows = row[0] if row else 0
+            row_limit = total_rows + 100
+
             # Query to get all URLs from the database.
-            cur.execute("SELECT url FROM applicants WHERE url IS NOT NULL;")
+            url_query = psycopg.sql.SQL("""
+                SELECT {url_col}
+                FROM {table}
+                WHERE {url_col} IS NOT NULL
+                LIMIT {limit}
+            """).format(url_col=psycopg.sql.Identifier("url"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(url_query)
             urls = cur.fetchall()
 
             if not urls:

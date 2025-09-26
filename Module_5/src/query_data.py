@@ -61,39 +61,108 @@ def run_queries():  # pylint: disable=R0915, R0914
             # and value being a tuple of (longform question, answer).
             query_results = {}
 
+            # Determine total number of rows in db for limit setting
+            count_query = psycopg.sql.SQL(
+                "SELECT COUNT(*) FROM {table}").format(
+                    table=psycopg.sql.Identifier("applicants"))
+            cur.execute(count_query)
+            row = cur.fetchone()
+            total_rows = row[0] if row else 0
+            row_limit = total_rows + 100
+
             # 1. Query to count entries with "Fall 2025" in the term field.
-            cur.execute("SELECT COUNT(*) FROM applicants WHERE term = %s",
-                        ("Fall 2025", ))
+            select_query = psycopg.sql.SQL("""
+                SELECT COUNT(*) FROM {table} WHERE {column} = {value} LIMIT {limit}
+            """).format(table=psycopg.sql.Identifier("applicants"),
+                        column=psycopg.sql.Identifier("term"),
+                        value=psycopg.sql.Literal("Fall 2025"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(select_query)
             result = cur.fetchone()
             count_f_2025 = result[0] if result else 0
             query_results["1"] = (q_1, count_f_2025)
 
             # 2. Query to find percentage international students.
-            cur.execute("""    SELECT
-                (COUNT(*) FILTER (WHERE us_or_international = 'International') * 100.0 / COUNT(*)) AS percentage_international
-                FROM applicants;""")
+            percentage_query = psycopg.sql.SQL("""
+                SELECT
+                    (COUNT(*) FILTER (WHERE {column} = {value}) * 100.0 / COUNT(*)) AS percentage_international
+                FROM {table}
+                LIMIT {limit}
+            """).format(table=psycopg.sql.Identifier("applicants"),
+                        column=psycopg.sql.Identifier("us_or_international"),
+                        value=psycopg.sql.Literal("International"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(percentage_query)
             result = cur.fetchone()
             percentage_international = result[0] if result else None
             query_results["2"] = (q_2, round(percentage_international, 2)
                                   if percentage_international else None)
 
             # 3a. Query to find average GPA score.
-            cur.execute("SELECT AVG(gpa) FROM applicants WHERE gpa < 5;")
+            avg_gpa_query = psycopg.sql.SQL("""
+                SELECT AVG({column})
+                FROM {table}
+                WHERE {column} < {threshold}
+                LIMIT {limit}
+            """).format(column=psycopg.sql.Identifier("gpa"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        threshold=psycopg.sql.Literal(5),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gpa_query)
             result = cur.fetchone()
             average_gpa = result[0] if result else None
 
             # 3b. Query to find average GRE score.
-            cur.execute("SELECT AVG(gre) FROM applicants WHERE gre < 170;")
+            avg_gre_query = psycopg.sql.SQL("""
+                SELECT AVG({column}) FROM (
+                    SELECT {column}
+                    FROM {table}
+                    WHERE {column} < {threshold}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(column=psycopg.sql.Identifier("gre"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        threshold=psycopg.sql.Literal(170),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gre_query)
             result = cur.fetchone()
             average_gre = result[0] if result else None
 
             # 3c. Query to find GRE V score.
-            cur.execute("SELECT AVG(gre_v) FROM applicants WHERE gre_v < 170;")
+            avg_gre_v_query = psycopg.sql.SQL("""
+                SELECT AVG({column}) FROM (
+                    SELECT {column}
+                    FROM {table}
+                    WHERE {column} < {threshold}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(column=psycopg.sql.Identifier("gre_v"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        threshold=psycopg.sql.Literal(170),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gre_v_query)
             result = cur.fetchone()
             average_gre_v = result[0] if result else None
 
             # 3d. Query to find GRE AW score.
-            cur.execute("SELECT AVG(gre_aw) FROM applicants WHERE gre_aw < 6;")
+            avg_gre_aw_query = psycopg.sql.SQL("""
+                SELECT AVG({column}) FROM (
+                    SELECT {column}
+                    FROM {table}
+                    WHERE {column} < {threshold}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(column=psycopg.sql.Identifier("gre_aw"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        threshold=psycopg.sql.Literal(6),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gre_aw_query)
             result = cur.fetchone()
             average_gre_aw = result[0] if result else None
 
@@ -105,77 +174,181 @@ def run_queries():  # pylint: disable=R0915, R0914
             ))
 
             # 4. Query to find average GPA of American applicants.
-            cur.execute("""    SELECT
-                AVG(gpa) AS average_gpa_american
-                FROM applicants
-                WHERE us_or_international = 'American';""")
+            avg_gpa_american_query = psycopg.sql.SQL("""
+                SELECT AVG({gpa_col}) AS average_gpa_american FROM (
+                    SELECT {gpa_col}
+                    FROM {table}
+                    WHERE {country_col} = {country_val}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(
+                gpa_col=psycopg.sql.Identifier("gpa"),
+                table=psycopg.sql.Identifier("applicants"),
+                country_col=psycopg.sql.Identifier("us_or_international"),
+                country_val=psycopg.sql.Literal("American"),
+                limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gpa_american_query)
             result = cur.fetchone()
             average_gpa_american = result[0] if result else None
             query_results["4"] = (q_4, round(average_gpa_american, 2)
                                   if average_gpa_american else None)
 
             # 5. Query to find percent Accepted for Fall 2025.
-            cur.execute("""    SELECT
-                CASE 
-                    WHEN COUNT(*) = 0 THEN NULL
-                    ELSE (COUNT(*) FILTER (WHERE status LIKE 'Accepted%') * 100.0 / COUNT(*))
-                END AS percentage_accepted
-                FROM applicants
-                WHERE term = 'Fall 2025';""")
+            percentage_accepted_query = psycopg.sql.SQL("""
+                SELECT
+                    CASE 
+                        WHEN COUNT(*) = 0 THEN NULL
+                        ELSE (COUNT(*) FILTER (WHERE {status_col} LIKE {status_pattern}) * 100.0 / COUNT(*))
+                    END AS percentage_accepted
+                FROM (
+                    SELECT *
+                    FROM {table}
+                    WHERE {term_col} = {term_val}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(status_col=psycopg.sql.Identifier("status"),
+                        status_pattern=psycopg.sql.Literal("Accepted%"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        term_col=psycopg.sql.Identifier("term"),
+                        term_val=psycopg.sql.Literal("Fall 2025"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(percentage_accepted_query)
             result = cur.fetchone()
             percentage_accepted_f25 = result[0] if result else None
             query_results["5"] = (q_5, round(percentage_accepted_f25, 2)
                                   if percentage_accepted_f25 else None)
 
             # 6. Query to find average GPA for Fall 2025 Accepted.
-            cur.execute("""    SELECT AVG(gpa) AS average_gpa_accepted_f25
-                FROM applicants
-                WHERE term = 'Fall 2025' AND gpa < 5 AND status LIKE 'Accepted%';"""
-                        )
+            avg_gpa_accepted_f25_query = psycopg.sql.SQL("""
+                SELECT AVG({gpa_col}) AS average_gpa_accepted_f25 FROM (
+                    SELECT {gpa_col}
+                    FROM {table}
+                    WHERE {term_col} = {term_val}
+                      AND {gpa_col} < {gpa_threshold}
+                      AND {status_col} LIKE {status_pattern}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(gpa_col=psycopg.sql.Identifier("gpa"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        term_col=psycopg.sql.Identifier("term"),
+                        term_val=psycopg.sql.Literal("Fall 2025"),
+                        gpa_threshold=psycopg.sql.Literal(5),
+                        status_col=psycopg.sql.Identifier("status"),
+                        status_pattern=psycopg.sql.Literal("Accepted%"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gpa_accepted_f25_query)
             result = cur.fetchone()
             average_gpa_accepted_f25 = result[0] if result else None
             query_results["6"] = (q_6, round(average_gpa_accepted_f25, 2)
                                   if average_gpa_accepted_f25 else None)
 
             # 7. Query to count applicants to JHU for Masters in Computer Science.
-            cur.execute(
-                """    SELECT COUNT(*) AS jhu_cs_masters_count FROM applicants
-                WHERE llm_generated_university = 'Johns Hopkins University' 
-                AND degree = 'Masters' AND llm_generated_program = 'Computer Science';"""
-            )
+            jhu_cs_masters_count_query = psycopg.sql.SQL("""
+                SELECT COUNT(*) AS jhu_cs_masters_count FROM (
+                    SELECT *
+                    FROM {table}
+                    WHERE {university_col} = {university_val}
+                      AND {degree_col} = {degree_val}
+                      AND {program_col} = {program_val}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(
+                table=psycopg.sql.Identifier("applicants"),
+                university_col=psycopg.sql.Identifier(
+                    "llm_generated_university"),
+                university_val=psycopg.sql.Literal("Johns Hopkins University"),
+                degree_col=psycopg.sql.Identifier("degree"),
+                degree_val=psycopg.sql.Literal("Masters"),
+                program_col=psycopg.sql.Identifier("llm_generated_program"),
+                program_val=psycopg.sql.Literal("Computer Science"),
+                limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(jhu_cs_masters_count_query)
             result = cur.fetchone()
             count_jhu_cs_masters = result[0] if result else 0
             query_results["7"] = (q_7, count_jhu_cs_masters)
 
             # 8. Query to count applicants to Georgetown for PhD in CS who were accepted.
-            cur.execute(
-                """    SELECT COUNT(*) AS hoya_cs_phd_2025 FROM applicants
-                WHERE llm_generated_university = 'Georgetown University' 
-                AND degree = 'PhD' AND llm_generated_program = 'Computer Science' 
-                AND status LIKE 'Accepted%';""")
+            hoya_cs_phd_2025_query = psycopg.sql.SQL("""
+                SELECT COUNT(*) AS hoya_cs_phd_2025 FROM (
+                    SELECT *
+                    FROM {table}
+                    WHERE {university_col} = {university_val}
+                      AND {degree_col} = {degree_val}
+                      AND {program_col} = {program_val}
+                      AND {status_col} LIKE {status_pattern}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(
+                table=psycopg.sql.Identifier("applicants"),
+                university_col=psycopg.sql.Identifier(
+                    "llm_generated_university"),
+                university_val=psycopg.sql.Literal("Georgetown University"),
+                degree_col=psycopg.sql.Identifier("degree"),
+                degree_val=psycopg.sql.Literal("PhD"),
+                program_col=psycopg.sql.Identifier("llm_generated_program"),
+                program_val=psycopg.sql.Literal("Computer Science"),
+                status_col=psycopg.sql.Identifier("status"),
+                status_pattern=psycopg.sql.Literal("Accepted%"),
+                limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(hoya_cs_phd_2025_query)
             result = cur.fetchone()
             count_hoya_cs_phd_2025 = result[0] if result else 0
             query_results["8"] = (q_8, count_hoya_cs_phd_2025)
 
             # 9. Query to find most common university for Fall 2025 applicants.
-            cur.execute(
-                """    SELECT llm_generated_university, COUNT(*) AS count FROM applicants
-                WHERE term = 'Fall 2025'
-                GROUP BY llm_generated_university
+            top_university_query = psycopg.sql.SQL("""
+                SELECT {university_col}, COUNT(*) AS count FROM {table}
+                WHERE {term_col} = {term_val}
+                GROUP BY {university_col}
                 ORDER BY count DESC
-                LIMIT 1;""")
+                LIMIT {limit};
+            """).format(university_col=psycopg.sql.Identifier(
+                "llm_generated_university"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        term_col=psycopg.sql.Identifier("term"),
+                        term_val=psycopg.sql.Literal("Fall 2025"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(top_university_query)
             result = cur.fetchone()
             popular_u_f25 = result[0] if result else 'No data'
             query_results["9"] = (q_9, popular_u_f25)
 
             # 10. Query to compare UVA and VT accepted GPAs for Fall 2025.
-            cur.execute("""    SELECT
-                (AVG(gpa) FILTER (WHERE llm_generated_university = 'University of Virginia' 
-                AND gpa < 5)) AS uva_gpa,
-                (AVG(gpa) FILTER (WHERE llm_generated_university = 'Virginia Tech' 
-                AND gpa < 5)) AS vt_gpa
-                FROM applicants
-                WHERE term = 'Fall 2025' AND status LIKE 'Accepted%';""")
+            avg_gpa_uva_vt_query = psycopg.sql.SQL("""
+                SELECT
+                    AVG({gpa_col}) FILTER (
+                        WHERE {university_col} = {uva_val} AND {gpa_col} < {gpa_threshold}
+                    ) AS uva_gpa,
+                    AVG({gpa_col}) FILTER (
+                        WHERE {university_col} = {vt_val} AND {gpa_col} < {gpa_threshold}
+                    ) AS vt_gpa
+                FROM (
+                    SELECT *
+                    FROM {table}
+                    WHERE {term_col} = {term_val}
+                      AND {status_col} LIKE {status_pattern}
+                    LIMIT {limit}
+                ) AS limited_subquery
+            """).format(gpa_col=psycopg.sql.Identifier("gpa"),
+                        university_col=psycopg.sql.Identifier(
+                            "llm_generated_university"),
+                        uva_val=psycopg.sql.Literal("University of Virginia"),
+                        vt_val=psycopg.sql.Literal("Virginia Tech"),
+                        gpa_threshold=psycopg.sql.Literal(5),
+                        table=psycopg.sql.Identifier("applicants"),
+                        term_col=psycopg.sql.Identifier("term"),
+                        term_val=psycopg.sql.Literal("Fall 2025"),
+                        status_col=psycopg.sql.Identifier("status"),
+                        status_pattern=psycopg.sql.Literal("Accepted%"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(avg_gpa_uva_vt_query)
             result = cur.fetchone()
             uva_gpa, vt_gpa = result if result else (None, None)
             if uva_gpa is not None and vt_gpa is not None:

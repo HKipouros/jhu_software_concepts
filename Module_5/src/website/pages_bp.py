@@ -27,13 +27,16 @@ import sys
 import os
 import psycopg
 from flask import Blueprint, render_template, redirect, url_for, flash
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from query_data import run_queries # pylint: disable=C0413
-from update_database import find_recent, updated_scrape, clean_data, process_data_with_llm # pylint: disable=C0413
+from query_data import run_queries  # pylint: disable=C0413
+from update_database import find_recent, updated_scrape, clean_data, process_data_with_llm  # pylint: disable=C0413
+
 
 def get_db_connection():
     """Create and return a database connection."""
     return psycopg.connect(os.environ["DATABASE_URL"])
+
 
 # Variable to keep track of first button running
 IS_UPDATING = False
@@ -54,9 +57,9 @@ def home():
 
 # Define Pull Data button route.
 @pages.route("/button-click", methods=["POST"])
-def button_click(): # pylint: disable=R0914
+def button_click():  # pylint: disable=R0914
     """Defines route for Pull Data button"""
-    global IS_UPDATING # pylint: disable=W0603
+    global IS_UPDATING  # pylint: disable=W0603
 
     if IS_UPDATING:
         return render_template(
@@ -64,7 +67,7 @@ def button_click(): # pylint: disable=R0914
 
     IS_UPDATING = True
     try:
-        queries = run_queries() # pylint: disable=W0612
+        queries = run_queries()  # pylint: disable=W0612
 
         # Start scraping.
         flash("Starting data scrape from TheGradCafe...")
@@ -102,12 +105,13 @@ def button_click(): # pylint: disable=R0914
 
         conn = get_db_connection()
         try:
-            with conn.cursor() as cur: # pylint: disable=E1101
+            with conn.cursor() as cur:  # pylint: disable=E1101
                 for entry in llm_extend_data:
                     # Prepare data
                     program = entry["program"] if entry["program"] else None
                     comments = entry["comments"] if entry["comments"] else None
-                    date_added = entry["date_added"] if entry["date_added"] else None
+                    date_added = entry["date_added"] if entry[
+                        "date_added"] else None
                     url = entry["url"] if entry["url"] else None
                     status = entry["status"] if entry["status"] else None
                     term = entry["term"] if entry["term"] else None
@@ -116,36 +120,54 @@ def button_click(): # pylint: disable=R0914
                     gpa = float(entry["GPA"]) if entry["GPA"] else None
                     gre = float(entry["GRE"]) if entry["GRE"] else None
                     gre_v = float(entry["GRE_V"]) if entry["GRE_V"] else None
-                    gre_aw = float(entry["GRE_AW"]) if entry["GRE_AW"] else None
+                    gre_aw = float(
+                        entry["GRE_AW"]) if entry["GRE_AW"] else None
                     degree = entry["Degree"] if entry["Degree"] else None
-                    llm_generated_program = entry["llm-generated-program"] if entry[
-                        "llm-generated-program"] else None
+                    llm_generated_program = entry[
+                        "llm-generated-program"] if entry[
+                            "llm-generated-program"] else None
                     llm_generated_university = entry[
                         "llm-generated-university"] if entry[
                             "llm-generated-university"] else None
 
-                    # Insert
-                    cur.execute(
-                        """
-                        INSERT INTO applicants (
-                            program, comments, date_added, url, status, term, 
-                            us_or_international, gpa, gre, gre_v, gre_aw, degree,
-                            llm_generated_program, llm_generated_university
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (url) DO NOTHING
-                        """, (program, comments, date_added, url, status, term,
-                              us_or_international, gpa, gre, gre_v, gre_aw, degree,
-                              llm_generated_program, llm_generated_university))
+                    # Define variables for table and columns
+                    table_name = psycopg.sql.Identifier("applicants")
+                    columns = [
+                        "program", "comments", "date_added", "url", "status",
+                        "term", "us_or_international", "gpa", "gre", "gre_v",
+                        "gre_aw", "degree", "llm_generated_program",
+                        "llm_generated_university"
+                    ]
+                    column_identifiers = [
+                        psycopg.sql.Identifier(col) for col in columns
+                    ]
+
+                    # SQL string composition
+                    query = psycopg.sql.SQL("""
+                        INSERT INTO {table} ({fields})
+                        VALUES ({placeholders})
+                    """).format(
+                        table=table_name,
+                        fields=psycopg.sql.SQL(', ').join(column_identifiers),
+                        placeholders=psycopg.sql.SQL(', ').join(
+                            psycopg.sql.Placeholder() for _ in columns))
+
+                    # Values in the same order as the columns list
+                    values = (program, comments, date_added, url, status, term,
+                              us_or_international, gpa, gre, gre_v, gre_aw,
+                              degree, llm_generated_program,
+                              llm_generated_university)
+
+                    # Execute the query separately
+                    cur.execute(query, values)
 
             # Commit all changes at once
-            conn.commit() # pylint: disable=E1101
+            conn.commit()  # pylint: disable=E1101
         finally:
-            conn.close() # pylint: disable=E1101
+            conn.close()  # pylint: disable=E1101
 
         # Success message
-        flash(
-            "Data pull completed successfully!"
-        )
+        flash("Data pull completed successfully!")
         return redirect(url_for("pages.home"))
 
     # First button finished running, update variable
@@ -156,7 +178,7 @@ def button_click(): # pylint: disable=R0914
 @pages.route("/another-button-click", methods=["POST"])
 def another_button_click():
     """Define route for Update Analysis button."""
-    global IS_UPDATING # pylint: disable=W0602
+    global IS_UPDATING  # pylint: disable=W0602
 
     # Do nothing except inform user if data pull still running.
     if IS_UPDATING:
