@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Potassiumtree43!
+      POSTGRES_DB: gradcafe_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "15672:15672" # RabbitMQ management UI
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: ./web
+    environment:
+      FLASK_ENV: ${FLASK_ENV}
+      FLASK_SECRET: ${FLASK_SECRET}
+      DATABASE_URL: postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: ./worker
+    environment:
+      DATABASE_URL: postgresql://postgres:Potassiumtree43!@db:5432/gradcafe_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      SEED_JSON: /data/applicant_data.json
+      TARGET_TABLE: applicants
+      ID_KEY: id
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  pgdata:

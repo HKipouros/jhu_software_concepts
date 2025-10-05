@@ -1,0 +1,42 @@
+# Python cache and environments
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+tests/
+data/
+docs/
+models/
+llm_hosting/
+etl/llm_hosting
+etl/models
+
+# Replit/local development files
+.pythonlibs/
+.cache/
+.uv/
+uv.lock
+
+# Large model files (download fresh if needed)
+models/
+
+# Git and IDE
+.git/
+.gitignore
+.vscode/
+*.md
+
+# Test and documentation
+tests/
+docs/
+*.egg-info/
+.pytest_cache/
+coverage_summary.txt
+
+# Other build artifacts
+*.log
+.env
+.env.example

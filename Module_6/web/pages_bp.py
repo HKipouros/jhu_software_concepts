@@ -35,7 +35,12 @@ from update_database import find_recent, updated_scrape, clean_data, process_dat
 
 def get_db_connection():
     """Create and return a database connection."""
-    return psycopg.connect(os.environ["DATABASE_URL"])
+    database_url = os.environ.get("DATABASE_URL")
+    
+    if not database_url:
+        database_url = "postgresql://postgres:Potassiumtree43!@localhost:5432/gradcafe_db"
+    
+    return psycopg.connect(database_url)
 
 
 # Variable to keep track of first button running
