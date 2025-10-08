@@ -17,6 +17,8 @@ services:
   data_loader:
     build:
       context: ./db  # Set context to the db folder
+    environment:
+      DATABASE_URL: postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db
     depends_on:
       - db
   
@@ -24,11 +26,16 @@ services:
     image: rabbitmq:3.13-management
     ports:
       - "15672:15672" # RabbitMQ management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbituser     
+      RABBITMQ_DEFAULT_PASS: rabbitpass 
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   web:
     build: ./web
@@ -36,7 +43,7 @@ services:
       FLASK_ENV: app.py
       FLASK_SECRET: ${FLASK_SECRET}
       DATABASE_URL: postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: "amqp://rabbituser:rabbitpass@rabbitmq:5672/"
     ports:
       - "8080:8080"
     depends_on:
@@ -49,7 +56,7 @@ services:
     build: ./worker
     environment:
       DATABASE_URL: postgresql://postgres:Potassiumtree43!@db:5432/gradcafe_db
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: "amqp://rabbituser:rabbitpass@rabbitmq:5672/"
       SEED_JSON: /data/applicant_data.json
       TARGET_TABLE: applicants
       ID_KEY: id
@@ -63,3 +70,4 @@ services:
 
 volumes:
   pgdata:
+  rabbitmq_data:

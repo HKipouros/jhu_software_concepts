@@ -37,8 +37,61 @@ def get_db_connection():
 
     return psycopg.connect(database_url)
 
-def watermark():
-    """Create a watermark table that ensures idempotent inserts."""
+def find_recent():
+    """Function to find most recent entry in database."""
+    conn = get_db_connection()
+    try:
+        # Create a cursor object.
+        with conn.cursor() as cur:  # pylint: disable=E1101
+
+            # Determine total number of rows in db for limit setting
+            count_query = psycopg.sql.SQL(
+                "SELECT COUNT(*) FROM {table}").format(
+                    table=psycopg.sql.Identifier("applicants"))
+            cur.execute(count_query)
+            row = cur.fetchone()
+            total_rows = row[0] if row else 0
+            row_limit = total_rows + 100
+
+            # Query to get all URLs from the database.
+            url_query = psycopg.sql.SQL("""
+                SELECT {url_col}
+                FROM {table}
+                WHERE {url_col} IS NOT NULL
+                LIMIT {limit}
+            """).format(url_col=psycopg.sql.Identifier("url"),
+                        table=psycopg.sql.Identifier("applicants"),
+                        limit=psycopg.sql.Literal(row_limit))
+
+            cur.execute(url_query)
+            urls = cur.fetchall()
+
+            if not urls:
+                return None
+
+            max_number = 0
+            recent_url = None  # pylint: disable=W0612
+
+            # Extract number from each URL and find the maximum.
+            for (url, ) in urls:
+                try:
+                    url_parts = url.split('/')
+                    if url_parts:
+                        number = int(url_parts[-1])
+                        if number > max_number:
+                            max_number = number
+                            recent_url = url
+                except (ValueError, IndexError):
+                    # Skip URLs that don't have a valid number at the end.
+                    continue
+
+            return int(max_number)
+    finally:
+        conn.close() 
+
+def create_watermark():
+    """Defines a watermark table that ensures idempotent inserts."""
+    
     create_query = """
         CREATE TABLE IF NOT EXISTS ingestion_watermarks (
             source TEXT PRIMARY KEY,
@@ -50,6 +103,22 @@ def watermark():
     with conn.cursor() as cur:
         cur.execute(create_query)
     conn.commit()
+
+def update_watermark(source, last_seen):
+    conn = get_db_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO ingestion_watermarks (source, last_seen)
+                    VALUES (%s, %s)
+                    ON CONFLICT (source) 
+                    DO UPDATE SET last_seen = EXCLUDED.last_seen, updated_at = now();
+                """, (source, last_seen))
+    finally:
+        if conn:
+            conn.close()  # Ensure the connection is closed
+
 
 
 def data_to_base(file_name: str):  # pylint: disable=R0914
@@ -146,4 +215,10 @@ if __name__ == "__main__":
     script_dir = Path(__file__).parent
     INPUT_FILE = "applicant_data.json"
     data_to_base(str(INPUT_FILE))
-    print("Done!!")
+    print("Database load complete.")
+    create_watermark()
+    print("Watermark created.")
+    recent = find_recent()
+    update_watermark("gradcafe", recent)
+    print("Watermark updated")
+

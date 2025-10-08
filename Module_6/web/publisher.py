@@ -1,5 +1,11 @@
 import os
 import pika
+import json
+from datetime import datetime
+
+EXCHANGE = "tasks"
+QUEUE = "tasks_q"
+ROUTING_KEY = "scrape_new_data"
 
 def _open_channel():
     url = os.environ["RABBITMQ_URL"]
