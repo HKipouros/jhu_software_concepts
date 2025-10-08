@@ -1,3 +1,4 @@
+import os
 import pika
 
 def _open_channel():
@@ -13,7 +14,7 @@ def _open_channel():
     return conn, ch
 
 def publish_task(kind: str, payload: dict | None = None, headers: dict | None =
-None): 
+None):
     body = json.dumps(
         {"kind": kind, "ts": datetime.utcnow().isoformat(), "payload": payload or {}},
         separators=(",", ":")

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
@@ -15,7 +13,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
+  
+  data_loader:
+    build:
+      context: ./db  # Set context to the db folder
+    depends_on:
+      - db
+  
   rabbitmq:
     image: rabbitmq:3.13-management
     ports:
@@ -29,7 +33,7 @@ services:
   web:
     build: ./web
     environment:
-      FLASK_ENV: ${FLASK_ENV}
+      FLASK_ENV: app.py
       FLASK_SECRET: ${FLASK_SECRET}
       DATABASE_URL: postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/

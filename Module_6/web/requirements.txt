@@ -7,3 +7,4 @@ flask
 pylint
 pydeps
 python-dotenv
+pika

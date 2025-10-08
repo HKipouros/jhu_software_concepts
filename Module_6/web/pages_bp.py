@@ -22,11 +22,12 @@ Dependencies:
     - Custom modules: run_queries, find_recent, updated_scrape,
       clean_data, process_data_with_llm
 """
-
+from __future__ import annotations
 import sys
 import os
 import psycopg
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, jsonify, current_app
+from publisher import publish_task
 
 from query_data import run_queries
 
@@ -36,10 +37,10 @@ from update_database import find_recent, updated_scrape, clean_data, process_dat
 def get_db_connection():
     """Create and return a database connection."""
     database_url = os.environ.get("DATABASE_URL")
-    
+
     if not database_url:
         database_url = "postgresql://postgres:Potassiumtree43!@localhost:5432/gradcafe_db"
-    
+
     return psycopg.connect(database_url)
 
 
@@ -63,132 +64,32 @@ def home():
 # Define Pull Data button route.
 @pages.route("/button-click", methods=["POST"])
 def button_click():  # pylint: disable=R0914
-    """Defines route for Pull Data button"""
-    global IS_UPDATING  # pylint: disable=W0603
-
+    global IS_UPDATING
     if IS_UPDATING:
-        return render_template(
-            "home.html", message="Update is already in progress. Please wait.")
-
+        return render_template("home.html", message="Update is already in progress.")
+    
     IS_UPDATING = True
     try:
-        queries = run_queries()  # pylint: disable=W0612
+        publish_task("scrape_new_data", payload={})
+        return jsonify({"status": "queued", "task": "scrape_new_data"}), 202
 
-        # Start scraping.
-        flash("Starting data scrape from TheGradCafe...")
-
-        # Call functions to scrape new data, clean, and run through LLM.
-        recent_result = find_recent()
-        if recent_result is None:
-            recent_result = 0
-
-        scraped_entries = updated_scrape(recent_result)
-        if not scraped_entries:
-            flash("No new entries to scrape")
-            return redirect(url_for("pages.home"))
-
-        # Clean data.
-        flash(
-            f"Found {len(scraped_entries)} new entries. Cleaning and validating data..."
-        )
-        cleaned_data = clean_data(scraped_entries)
-        if not cleaned_data:
-            flash("Data cleaning failed - no valid entries found")
-            return redirect(url_for("pages.home"))
-
-        # Run through LLM.
-        flash(
-            f"Processing {len(cleaned_data)} entries with LLM for standardization..."
-        )
-        llm_extend_data = process_data_with_llm(cleaned_data)
-        if not llm_extend_data:
-            flash("LLM processing failed - no data to add")
-            return redirect(url_for("pages.home"))
-
-        # Update database.
-        flash(f"Updating database with {len(llm_extend_data)} new entries...")
-
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:  # pylint: disable=E1101
-                for entry in llm_extend_data:
-                    # Prepare data
-                    program = entry["program"] if entry["program"] else None
-                    comments = entry["comments"] if entry["comments"] else None
-                    date_added = entry["date_added"] if entry[
-                        "date_added"] else None
-                    url = entry["url"] if entry["url"] else None
-                    status = entry["status"] if entry["status"] else None
-                    term = entry["term"] if entry["term"] else None
-                    us_or_international = entry["US/International"] if entry[
-                        "US/International"] else None
-                    gpa = float(entry["GPA"]) if entry["GPA"] else None
-                    gre = float(entry["GRE"]) if entry["GRE"] else None
-                    gre_v = float(entry["GRE_V"]) if entry["GRE_V"] else None
-                    gre_aw = float(
-                        entry["GRE_AW"]) if entry["GRE_AW"] else None
-                    degree = entry["Degree"] if entry["Degree"] else None
-                    llm_generated_program = entry[
-                        "llm-generated-program"] if entry[
-                            "llm-generated-program"] else None
-                    llm_generated_university = entry[
-                        "llm-generated-university"] if entry[
-                            "llm-generated-university"] else None
-
-                    # Define variables for table and columns
-                    table_name = psycopg.sql.Identifier("applicants")
-                    columns = [
-                        "program", "comments", "date_added", "url", "status",
-                        "term", "us_or_international", "gpa", "gre", "gre_v",
-                        "gre_aw", "degree", "llm_generated_program",
-                        "llm_generated_university"
-                    ]
-                    column_identifiers = [
-                        psycopg.sql.Identifier(col) for col in columns
-                    ]
-
-                    # SQL string composition
-                    query = psycopg.sql.SQL("""
-                        INSERT INTO {table} ({fields})
-                        VALUES ({placeholders})
-                    """).format(
-                        table=table_name,
-                        fields=psycopg.sql.SQL(', ').join(column_identifiers),
-                        placeholders=psycopg.sql.SQL(', ').join(
-                            psycopg.sql.Placeholder() for _ in columns))
-
-                    # Values in the same order as the columns list
-                    values = (program, comments, date_added, url, status, term,
-                              us_or_international, gpa, gre, gre_v, gre_aw,
-                              degree, llm_generated_program,
-                              llm_generated_university)
-
-                    # Execute the query separately
-                    cur.execute(query, values)
-
-            # Commit all changes at once
-            conn.commit()  # pylint: disable=E1101
-        finally:
-            conn.close()  # pylint: disable=E1101
-
-        # Success message
-        flash("Data pull completed successfully!")
-        return redirect(url_for("pages.home"))
-
-    # First button finished running, update variable
+    except Exception:
+        current_app.logger.exception("Failed to publish scrape_new_data")
+        return jsonify({"error": "publish_failed"}), 503
+    
     finally:
         IS_UPDATING = False
 
-
 @pages.route("/another-button-click", methods=["POST"])
 def another_button_click():
-    """Define route for Update Analysis button."""
-    global IS_UPDATING  # pylint: disable=W0602
-
-    # Do nothing except inform user if data pull still running.
+    global IS_UPDATING
     if IS_UPDATING:
-        flash("Please wait. Data pull is still in progress.")
-
-    # Otherwise run analysis and refresh home page.
-    queries = run_queries()  # pylint: disable=W0612
-    return redirect(url_for("pages.home"))
+        return render_template("home.html", message="Update is already in progress.")
+    
+    try:
+        publish_task("recompute_analytics", payload={})
+        return jsonify({"status": "queued", "task": "recompute_analytics"}), 202
+    except Exception:
+        current_app.logger.exception("Failed to publish recompute_analytics")
+        return jsonify({"error": "publish_failed"}), 503
+    
