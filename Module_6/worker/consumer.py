@@ -1,9 +1,19 @@
-import pika
+"""This module listens for messages on a task queue, determines task kind, 
+and calls functions for data processing based on the kind."""
+
 import json
 import os
+import time
+import pika
 import psycopg
-from etl.update_database import find_recent, updated_scrape, clean_data, process_data_with_llm, get_db_connection
-from etl.query_data import run_queries, get_db_connection
+from etl.update_database import ( # pylint: disable=E0401
+    find_recent,
+    updated_scrape,
+    clean_data,
+    process_data_with_llm,
+    get_db_connection,
+)
+from etl.query_data import run_queries # pylint: disable=E0401
 
 def update_watermark(source, last_seen):
     """Update watermark table with most recent id."""
@@ -36,15 +46,15 @@ def get_last_seen(source):
         if conn:
             conn.close()
 
-# Function to handle scraping new data
-def handle_scrape_new_data(payload):
+def handle_scrape_new_data(channel, method): # pylint: disable=R0914,R0915
+    """Call function for scrape new data task."""
     try:
         conn = get_db_connection()
-        data_source = "TheGradCafe"  # Define your source name
+        data_source = "TheGradCafe"
         last_seen = get_last_seen(data_source)  # Get last seen identifier from the watermark table
         recent_id = find_recent() or 0  # Start from ID 0 if no previous entries exist
 
-        scraped_entries = updated_scrape(last_seen or recent_id)  # Use last_seen or recent_id for scraping
+        scraped_entries = updated_scrape(last_seen or recent_id)
 
         if not scraped_entries:
             print("No new data found to scrape.")
@@ -65,7 +75,7 @@ def handle_scrape_new_data(payload):
             return
 
         last_seen = llm_extended_data[-1]["id"]  # Assuming the last entry has an "id"
-        
+
         with conn:
             with conn.cursor() as cur:  # pylint: disable=E1101
                 for entry in llm_extended_data:
@@ -76,14 +86,17 @@ def handle_scrape_new_data(payload):
                     url = entry["url"] if entry["url"] else None
                     status = entry["status"] if entry["status"] else None
                     term = entry["term"] if entry["term"] else None
-                    us_or_international = entry["US/International"] if entry["US/International"] else None
+                    us_int = entry["US/International"]
+                    us_or_international = us_int if us_int else None
                     gpa = float(entry["GPA"]) if entry["GPA"] else None
                     gre = float(entry["GRE"]) if entry["GRE"] else None
                     gre_v = float(entry["GRE_V"]) if entry["GRE_V"] else None
                     gre_aw = float(entry["GRE_AW"]) if entry["GRE_AW"] else None
                     degree = entry["Degree"] if entry["Degree"] else None
-                    llm_generated_program = entry["llm-generated-program"] if entry["llm-generated-program"] else None
-                    llm_generated_university = entry["llm-generated-university"] if entry["llm-generated-university"] else None
+                    llm_prog = entry["llm-generated-program"]
+                    llm_generated_program = llm_prog if llm_prog else None
+                    llm_uni = entry["llm-generated-university"]
+                    llm_generated_university = llm_uni if llm_uni else None
 
                     # Define variables for table and columns
                     table_name = psycopg.sql.Identifier("applicants")
@@ -102,7 +115,9 @@ def handle_scrape_new_data(payload):
                     """).format(
                         table=table_name,
                         fields=psycopg.sql.SQL(', ').join(column_identifiers),
-                        placeholders=psycopg.sql.SQL(', ').join(psycopg.sql.Placeholder() for _ in columns)
+                        placeholders = psycopg.sql.SQL(', ').join(
+                            psycopg.sql.Placeholder() for _ in columns
+                        )
                     )
 
                     # Execute the query
@@ -118,49 +133,56 @@ def handle_scrape_new_data(payload):
             update_watermark(data_source, last_seen)
 
         # Acknowledge the RabbitMQ message after a successful commit
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        channel.basic_ack(delivery_tag=method.delivery_tag)
         print("Data scraping and processing completed successfully!")
 
     # Rollback and nack if not success
-    except Exception as e:
+    except Exception as e: # pylint: disable=W0718
         conn.rollback()
         # Nack the message with requeue=False in case of failure
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         print(f"Error while scraping and processing new data: {str(e)}")
-    
+
     finally:
         if conn:
             conn.close()  # Ensure the connection is closed
 
-
-# Function to handle analysis recomputation
-def handle_recompute_analytics(payload):
+def handle_recompute_analytics():
+    """Call function to rerun queries (recompute analytics) for newly scraped data."""
     try:
         print("Recomputing analytics...")
-        results = run_queries()  # Run existing query logic here
+        results = run_queries()
         print("Analytics recomputed successfully!")
-        # You can further process results or store them as needed
-    except Exception as e:
+        return results
+    except Exception as e: # pylint: disable=W0718
         print(f"Error while recomputing analytics: {str(e)}")
+        return e
 
-# RabbitMQ message callback
-def callback(ch, method, properties, body):
+def callback(channel, method, body):
+    """Define RabbitMQ message callback and determine message kind."""
     payload = json.loads(body)
     task_type = payload.get("kind")
 
     # Route by "kind"
     if task_type == "scrape_new_data":
-        handle_scrape_new_data(payload)
+        handle_scrape_new_data(channel, method)
     elif task_type == "recompute_analytics":
-        handle_recompute_analytics(payload)
-
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+        handle_recompute_analytics()
 
 def main():
-    # Set up the RabbitMQ connection
+    """Start up RabbitMQ connection and consume messages."""
     url = os.environ.get("RABBITMQ_URL", "amqp://rabbituser:rabbitpass@rabbitmq:5672/")
-    print("RabbitMQ URL:", url)
-    connection = pika.BlockingConnection(pika.URLParameters(url))
+    connected = False
+    
+    # Logic to connect/wait and retry connection upon error
+    while not connected:
+        try:
+            connection = pika.BlockingConnection(pika.URLParameters(url))
+            connected = True
+        except pika.exceptions.AMQPConnectionError:
+            print("Connection failed, retrying in 5 seconds...")
+            time.sleep(5)  # Wait before retrying
+
     channel = connection.channel()
 
     # Declare the queue

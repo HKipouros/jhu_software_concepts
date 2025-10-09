@@ -19,8 +19,6 @@ Environment Variables:
 Dependencies:
     - Flask
     - psycopg
-    - Custom modules: run_queries, find_recent, updated_scrape,
-      clean_data, process_data_with_llm
 """
 from __future__ import annotations
 import sys
@@ -28,11 +26,7 @@ import os
 import psycopg
 from flask import Blueprint, render_template, redirect, url_for, flash, jsonify, current_app
 from publisher import publish_task
-
 from query_data import run_queries
-
-from update_database import find_recent, updated_scrape, clean_data, process_data_with_llm  # pylint: disable=C0413
-
 
 def get_db_connection():
     """Create and return a database connection."""
@@ -67,7 +61,7 @@ def button_click():  # pylint: disable=R0914
     global IS_UPDATING
     if IS_UPDATING:
         return render_template("home.html", message="Update is already in progress.")
-    
+
     IS_UPDATING = True
     try:
         publish_task("scrape_new_data", payload={})
@@ -76,7 +70,7 @@ def button_click():  # pylint: disable=R0914
     except Exception:
         current_app.logger.exception("Failed to publish scrape_new_data")
         return jsonify({"error": "publish_failed"}), 503
-    
+
     finally:
         IS_UPDATING = False
 
@@ -85,11 +79,10 @@ def another_button_click():
     global IS_UPDATING
     if IS_UPDATING:
         return render_template("home.html", message="Update is already in progress.")
-    
+
     try:
         publish_task("recompute_analytics", payload={})
         return jsonify({"status": "queued", "task": "recompute_analytics"}), 202
     except Exception:
         current_app.logger.exception("Failed to publish recompute_analytics")
         return jsonify({"error": "publish_failed"}), 503
-    

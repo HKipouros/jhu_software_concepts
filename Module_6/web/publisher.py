@@ -1,13 +1,17 @@
+"""This module publishes messages to a RabbitMQ queue, 
+to be consumed by a consumer module."""
+
+from datetime import datetime
+import json
 import os
 import pika
-import json
-from datetime import datetime
 
 EXCHANGE = "tasks"
 QUEUE = "tasks_q"
 ROUTING_KEY = "scrape_new_data"
 
 def _open_channel():
+    """Create a RabbitMQ connection and channel."""
     url = os.environ["RABBITMQ_URL"]
     params = pika.URLParameters(url)
     conn = pika.BlockingConnection(params)
@@ -21,6 +25,7 @@ def _open_channel():
 
 def publish_task(kind: str, payload: dict | None = None, headers: dict | None =
 None):
+    """Publish tasks to exchange."""
     body = json.dumps(
         {"kind": kind, "ts": datetime.utcnow().isoformat(), "payload": payload or {}},
         separators=(",", ":")

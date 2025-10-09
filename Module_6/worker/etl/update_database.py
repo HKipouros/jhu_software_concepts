@@ -32,8 +32,9 @@ import urllib3
 
 def get_db_connection():
     """Create and return a database connection."""
-    return psycopg.connect(os.environ["DATABASE_URL"])
+    database_url = os.getenv("DATABASE_URL", "postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db")
 
+    return psycopg.connect(database_url)
 
 def find_recent():
     """Function to find most recent entry in database."""

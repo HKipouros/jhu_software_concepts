@@ -13,6 +13,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - mynetwork
+    
   
   data_loader:
     build:
@@ -21,6 +24,8 @@ services:
       DATABASE_URL: postgres://postgres:Potassiumtree43!@db:5432/gradcafe_db
     depends_on:
       - db
+    networks:
+      - mynetwork
   
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -36,7 +41,9 @@ services:
       retries: 10
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-
+    networks:
+      - mynetwork
+  
   web:
     build: ./web
     environment:
@@ -51,7 +58,9 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
+    networks:
+      - mynetwork
+  
   worker:
     build: ./worker
     environment:
@@ -67,7 +76,13 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - mynetwork
 
 volumes:
   pgdata:
   rabbitmq_data:
+
+networks:
+  mynetwork:
+    driver: bridge
